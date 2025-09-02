@@ -85,7 +85,7 @@ namespace Api.Helpers
                     }
                     catch
                     {
-                        // You can log something here
+                    
                         throw;
                     }
                 }
@@ -109,3 +109,4 @@ namespace Api.Helpers
         }
     }
 }
+

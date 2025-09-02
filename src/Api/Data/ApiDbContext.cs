@@ -296,13 +296,18 @@ namespace Api.Data
         public virtual DbSet<VendorPayment> VendorPayments { get; set; }
         public virtual DbSet<Party> Parties { get; set; }
 
+        //to change the auditlog use this code
         public override int SaveChanges()
         {
             SaveAuditLog();
+            UpdateAuditLogRecordId();
 
             var ret = base.SaveChanges();
+            SaveAuditLog();
+
 
             UpdateAuditLogRecordId();
+            
 
             return ret;
         }
