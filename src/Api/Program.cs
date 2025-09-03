@@ -39,7 +39,7 @@ connectionString = String.Format(builder.Configuration.GetConnectionString("Defa
 System.Console.WriteLine("DB Connection String: " + connectionString);
 
 builder.Services
-    .AddEntityFrameworkSqlServer()
+    //.AddEntityFrameworkSqlServer()
     .AddDbContext<ApiDbContext>(options => options.UseSqlServer(connectionString))
     .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery) // Add this line
     .AddDbContext<ApplicationIdentityDbContext>(options => options.UseSqlServer(connectionString));
@@ -67,8 +67,10 @@ builder.Services.AddCors(options =>
                           policy.AllowAnyOrigin()
                                 .AllowAnyMethod()
                                 .AllowAnyHeader();
+                                .AllowAnyFooter();
                       });
 });
+
 
 // generic repository
 builder.Services.AddScoped(typeof(Core.Data.IRepository<>), typeof(EfRepository<>));
@@ -87,28 +89,6 @@ builder.Services.AddScoped(typeof(Services.Administration.IAdministrationService
 builder.Services.AddScoped(typeof(Services.Security.ISecurityService), typeof(Services.Security.SecurityService));
 builder.Services.AddScoped(typeof(Services.TaxSystem.ITaxService), typeof(Services.TaxSystem.TaxService));
 
-// for new domain filter service
-
-builder.Services.AddFilter(filter(Services.Main.ItaxServices)=>{
-    filter.AddFilter("TaxService", Services.TaxSystem.ITaxService);
-    filter.AddFilter("FinancialService", Services.Financial.IFinancialService);
-    filter.AddFilter("SalesService", Services.Sales.ISalesService);
-    filter.AddFilter("InventoryService", Services.Inventory.IInventoryService);
-    filter.AddFilter("PurchasingService", Services.Purchasing.IPurchasingService);
-    filter.AddFilter("SecurityService", Services.Security.ISecurityService);
-    filter.AddFilter("AdministrationService", Services.Administration.IAdministrationService);
-    filter.AddFilter("SalesOrderRepository", Core.Data.ISalesOrderRepository);
-    filter.AddFilter("PurchaseOrderRepository", Core.Data.IPurchaseOrderRepository);
-    // filter.AddFilter("SecurityRepository", Core.Data.ISecurityRepository);
-    filter.AddFilter("Repository", Core.Data.IRepository<>);
-    // filter.AddFilter("EfRepository", EfRepository<>);
-    filter.AddFilter("ApiDbContext", Api.Data.ApiDbContext);
-    filter.AddFilter("ApplicationIdentityDbContext", Api.Data.ApplicationIdentityDbContext);
-    filter.AddFilter("UserManager",UserManager<ApplicationManager>)
-    filter.AddFilter("RoleManager", RoleManager<IdentityRole>);
-    filter.AddFilter("SignInManager",SignInManager<ApplicationUser>);
-
-}),
 
 var app = builder.Build();
 
@@ -119,13 +99,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors(AllowAllOrigins);
 app.UseAuthorization();
-
 app.MapControllers();
-
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -134,15 +112,12 @@ using (var scope = app.Services.CreateScope())
     if (!apiDbContext.Database.GetAppliedMigrations().Any())
     {
         apiDbContext.Database.Migrate();
-        ApiDbContextSeed.SeedAsync(apiDbContext)
     }
 
     var identityDbContext = services.GetRequiredService<ApplicationIdentityDbContext>();
     if (!identityDbContext.Database.GetAppliedMigrations().Any())
     {
         identityDbContext.Database.Migrate();
-        var userManager = services.GetRequiredServices<UserManager<Application>>().FirstOrDefault();
-        var roleManager = services.GetRequiredServices<RoleManager<IdentityRole>>().FirstOrDefault();
     }
 }
 

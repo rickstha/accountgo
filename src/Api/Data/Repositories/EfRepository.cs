@@ -22,9 +22,9 @@ namespace Api.Data
 
         #region Properties
 
-        <summary>
+        /// <summary>
         /// Gets a table
-         </summary>
+        /// </summary>
         public virtual IQueryable<T> Table
         {
             get
@@ -33,9 +33,9 @@ namespace Api.Data
             }
         }
 
-         <summary>
+        /// <summary>
         /// Gets a table with "no tracking" enabled (EF feature) Use it only when you load record(s) only for read-only operations
-        </summary>
+        /// </summary>
         public virtual IQueryable<T> TableNoTracking
         {
             get
@@ -44,9 +44,9 @@ namespace Api.Data
             }
         }
 
-        <summary>
+        /// <summary>
         /// Entities
-         </summary>
+        /// </summary>
         protected virtual DbSet<T> Entities
         {
             get
@@ -64,20 +64,20 @@ namespace Api.Data
         #endregion
         #region Methods
 
-        <summary>
+        /// <summary>
         /// Get entity by identifier
-         </summary>
-         <param name="id">Identifier</param>
-         <returns>Entity</returns>
+        /// </summary>
+        /// <param name="id">Identifier</param>
+        /// <returns>Entity</returns>
         public virtual T GetById(object id)
         {
             return this.Entities.FirstOrDefault(x => x.Id == (int)id);
         }
 
-         <summary>
+        /// <summary>
         /// Insert entity
-        </summary>
-         <param name="entity">Entity</param>
+        /// </summary>
+        /// <param name="entity">Entity</param>
         public virtual void Insert(T entity)
         {
             try
@@ -90,18 +90,19 @@ namespace Api.Data
                 this._context.SaveChanges();
 
             }
-            //catch (DbEntityValidationException dbEx)
-            //{
-            //    var msg = string.Empty;
+            //for db error check 
+            catch (DbEntityValidationException dbEx)
+            {
+               var msg = string.Empty;
 
-            //    foreach (var validationErrors in dbEx.EntityValidationErrors)
-            //        foreach (var validationError in validationErrors.ValidationErrors)
-            //            msg += string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage) + Environment.NewLine;
+               foreach (var validationErrors in dbEx.EntityValidationErrors)
+                   foreach (var validationError in validationErrors.ValidationErrors)
+                       msg += string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage) + Environment.NewLine;
 
-            //    var fail = new Exception(msg, dbEx);
-            //    //Debug.WriteLine(fail.Message, fail);
-            //    throw fail;
-            //}
+               var fail = new Exception(msg, dbEx);
+              
+               throw fail;
+            }
             catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }
@@ -135,17 +136,15 @@ namespace Api.Data
             //    //Debug.WriteLine(fail.Message, fail);
             //    throw fail;
             //}
-
-            //if error occored then use this code
             catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }
         }
 
-        <summary>
+        /// <summary>
         /// Update entity
-        </summary>
-        <param name="entity">Entity</param>
+        /// </summary>
+        /// <param name="entity">Entity</param>
         public virtual void Update(T entity)
         {
             try
@@ -172,10 +171,10 @@ namespace Api.Data
             }
         }
 
-         <summary>
+        /// <summary>
         /// Delete entity
-         </summary>
-         <param name="entity">Entity</param>
+        /// </summary>
+        /// <param name="entity">Entity</param>
         public virtual void Delete(T entity)
         {
             try
@@ -187,9 +186,6 @@ namespace Api.Data
 
                 this._context.SaveChanges();
             }
-
-            //uncoment if necessery
-
             //catch (DbEntityValidationException dbEx)
             //{
             //    var msg = string.Empty;
@@ -207,10 +203,10 @@ namespace Api.Data
             }
         }
 
-        <summary>
+        /// <summary>
         /// Delete entities
-         </summary>
-         <param name="entities">Entities</param>
+        /// </summary>
+        /// <param name="entities">Entities</param>
         public virtual void Delete(IEnumerable<T> entities)
         {
             try
@@ -223,18 +219,20 @@ namespace Api.Data
 
                 this._context.SaveChanges();
             }
-            //catch (DbEntityValidationException dbEx)
-            //{
-            //    var msg = string.Empty;
 
-            //    foreach (var validationErrors in dbEx.EntityValidationErrors)
-            //        foreach (var validationError in validationErrors.ValidationErrors)
-            //            msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
+            // for new error 
+            catch (DbEntityValidationException dbEx)
+            {
+               var msg = string.Empty;
 
-            //    var fail = new Exception(msg, dbEx);
-            //    //Debug.WriteLine(fail.Message, fail);
-            //    throw fail;
-            //}
+               foreach (var validationErrors in dbEx.EntityValidationErrors)
+                   foreach (var validationError in validationErrors.ValidationErrors)
+                       msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
+
+               var fail = new Exception(msg, dbEx);
+               
+               throw fail;
+            }
             catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }
