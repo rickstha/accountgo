@@ -31,16 +31,18 @@ namespace Api.Controllers
             {
                 throw new System.ArgumentNullException(nameof(loginViewModel));
             }
-            //var error = await _signInManager.PreSignInCheck(user);
-            //if (error != null)
-            //{
-            //    return error;
-            //}
 
-            //if (await IsLockedOut(user))
-            //{
-            //    return await LockedOut(user);
-            //}
+            // error check detected and uncoment
+            var error = await _signInManager.PreSignInCheck(user);
+            if (error != null)
+            {
+               return error;
+            }
+
+            if (await IsLockedOut(user))
+            {
+               return await LockedOut(user);
+            }
             string password = loginViewModel.Password;
             string username = loginViewModel.Email;
             
@@ -62,20 +64,21 @@ namespace Api.Controllers
                 System.Console.WriteLine(ex.StackTrace);
             }
 
+                //not needed
 
-            //Logger.LogWarning(2, "User {userId} failed to provide the correct password.", await UserManager.GetUserIdAsync(user));
+            Logger.LogWarning(2, "User {userId} failed to provide the correct password.", await UserManager.GetUserIdAsync(user));
 
-            //if (_userManager.SupportsUserLockout && lockoutOnFailure)
-            //{
-            //    // If lockout is requested, increment access failed count which might lock out the user
-            //    await _userManager.AccessFailedAsync(user);
-            //    if (await _userManager.IsLockedOutAsync(user))
-            //    {
-            //        return await LockedOut(user);
-            //    }
-            //}
-            //return SignInResult.Failed;
-            // If we got this far, something failed, redisplay form
+            if (_userManager.SupportsUserLockout && lockoutOnFailure)
+            {
+               // If lockout is requested, increment access failed count which might lock out the user
+               await _userManager.AccessFailedAsync(user);
+               if (await _userManager.IsLockedOutAsync(user))
+               {
+                   return await LockedOut(user);
+               }
+            }
+            return SignInResult.Failed;
+            If we got this far, something failed, redisplay form
             return new BadRequestObjectResult(Microsoft.AspNetCore.Identity.SignInResult.Failed);
         }
 

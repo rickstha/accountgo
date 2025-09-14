@@ -22,9 +22,9 @@ namespace Api.Data
 
         #region Properties
 
-        /// <summary>
+         <summary>
         /// Gets a table
-        /// </summary>
+         </summary>
         public virtual IQueryable<T> Table
         {
             get
@@ -33,9 +33,8 @@ namespace Api.Data
             }
         }
 
-        /// <summary>
-        /// Gets a table with "no tracking" enabled (EF feature) Use it only when you load record(s) only for read-only operations
-        /// </summary>
+        <summary>
+         </summary>
         public virtual IQueryable<T> TableNoTracking
         {
             get
@@ -108,10 +107,10 @@ namespace Api.Data
             }
         }
 
-        /// <summary>
+        <summary>
         /// Insert entities
-        /// </summary>
-        /// <param name="entities">Entities</param>
+         </summary>
+         <param name="entities">Entities</param>
         public virtual void Insert(IEnumerable<T> entities)
         {
             try
@@ -124,18 +123,20 @@ namespace Api.Data
 
                 this._context.SaveChanges();
             }
-            //catch (DbEntityValidationException dbEx)
-            //{
-            //    var msg = string.Empty;
 
-            //    foreach (var validationErrors in dbEx.EntityValidationErrors)
-            //        foreach (var validationError in validationErrors.ValidationErrors)
-            //            msg += string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage) + Environment.NewLine;
+            //for errors using third coment
+            catch (DbEntityValidationException dbEx)
+            {
+               var msg = string.Empty;
 
-            //    var fail = new Exception(msg, dbEx);
-            //    //Debug.WriteLine(fail.Message, fail);
-            //    throw fail;
-            //}
+               foreach (var validationErrors in dbEx.EntityValidationErrors)
+                   foreach (var validationError in validationErrors.ValidationErrors)
+                       msg += string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage) + Environment.NewLine;
+
+               var fail = new Exception(msg, dbEx);
+               
+               throw fail;
+            }
             catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }
@@ -154,18 +155,18 @@ namespace Api.Data
 
                 _context.SaveChanges();
             }
-            //catch (DbEntityValidationException dbEx)
-            //{
-            //    var msg = string.Empty;
+            catch (DbEntityValidationException dbEx)
+            {
+               var msg = string.Empty;
 
-            //    foreach (var validationErrors in dbEx.EntityValidationErrors)
-            //        foreach (var validationError in validationErrors.ValidationErrors)
-            //            msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
+               foreach (var validationErrors in dbEx.EntityValidationErrors)
+                   foreach (var validationError in validationErrors.ValidationErrors)
+                       msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
 
-            //    var fail = new Exception(msg, dbEx);
-            //    //Debug.WriteLine(fail.Message, fail);
-            //    throw fail;
-            //}
+               var fail = new Exception(msg, dbEx);
+               
+               throw fail;
+            }
             catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }
@@ -186,18 +187,18 @@ namespace Api.Data
 
                 this._context.SaveChanges();
             }
-            //catch (DbEntityValidationException dbEx)
-            //{
-            //    var msg = string.Empty;
+            catch (DbEntityValidationException dbEx)
+            {
+               var msg = string.Empty;
 
-            //    foreach (var validationErrors in dbEx.EntityValidationErrors)
-            //        foreach (var validationError in validationErrors.ValidationErrors)
-            //            msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
+               foreach (var validationErrors in dbEx.EntityValidationErrors)
+                   foreach (var validationError in validationErrors.ValidationErrors)
+                       msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
 
-            //    var fail = new Exception(msg, dbEx);
-            //    //Debug.WriteLine(fail.Message, fail);
-            //    throw fail;
-            //}
+               var fail = new Exception(msg, dbEx);
+              
+               throw fail;
+            }
             catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }

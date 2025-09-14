@@ -19,7 +19,7 @@ namespace Api.Data
         {
             var result = new List<AuditLog>();
 
-            // Get the Table() attribute, if one exists
+           
             Type entryType = dbEntry.Entity.GetType();
 
             TableAttribute tableAttr = entryType.GetCustomAttributes(typeof(TableAttribute), false).SingleOrDefault() as TableAttribute;
@@ -44,14 +44,14 @@ namespace Api.Data
 
             try
             {
-                // Get primary key value (If you have more than one key column, this will need to be adjusted)
+                
                 string keyName = dbEntry.Entity.GetType().GetProperties().Single(p => p.GetCustomAttributes(typeof(KeyAttribute), false).Count() > 0).Name;
 
                 DateTime changeTime = DateTime.UtcNow;
 
                 if (dbEntry.State == EntityState.Added)
                 {
-                    //For Inserts, just add the whole record
+                  
                     if (isSchemaExt || IsEntityAuditable(tableName))
                     {
                         string dbEntryObject = ObjectFieldsValues(dbEntry);
