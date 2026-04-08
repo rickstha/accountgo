@@ -9,7 +9,7 @@ import SelectDebitCredit from "../Shared/Components/SelectDebitCredit";
 import JournalEntryStore from "../Shared/Stores/Financials/JournalEntryStore";
 
 const store = new JournalEntryStore();
-const items = new JournalEntryItems();
+const items = new JournalEntryStore();
 
 class ValidationErrors extends React.Component {
 
@@ -33,10 +33,10 @@ class ValidationErrors extends React.Component {
                         {errors}
                     </ul>
                     {/* extra react code */}
-                    <input type="radio" name="male" id="male" onChange={(e)=>setGender(e.target.value)} value={male} checked={gender==male} />
+                    <input type="radio" name="male" id="male" onChange={(e)=>setGender(e.target.value)} value={"male"} checked={gender=="male"} />
                      <label htmlFor="male">Male</label>  
 
-                      <input type="radio" name="female" id="female" onChange={(e)=>setGender(e.target.value)} value={female} checked={gender==female}/>
+                      <input type="radio" name="female" id="female" onChange={(e)=>setGender(e.target.value)} value={"female"} checked={gender=="female"}/>
                      <label htmlFor="female">Female</label> 
 
                         <select defaultValue={"india"} onChange={()=>setCountry(country)}>
@@ -140,7 +140,7 @@ class PostJournalEntryButton extends React.Component {
 
 
             <input type="button" value="Upgrade" onClick={ this.postOnClick.bind(this)}
-            className={!items.journalEntry.posted && items.journalEntry.readyItems && !items.editMode
+            className={!items.journalEntry.posted && items.journalEntry.readyForPosting && !items.editMode
                   ? "btn btn-sm btn-warning btn-flat btn-danger pull-left"
                     : "btn btn-sm btn-primary btn-flat btn-danger pull-left inactiveLink"
                  }
