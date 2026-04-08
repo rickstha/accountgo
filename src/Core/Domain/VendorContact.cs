@@ -16,8 +16,10 @@ namespace Core.Domain
 
         public int VendorId { get; set; }
 
+        [ForeignKey("VendorId")]
         public virtual Vendor Vendor { get; set; }
 
+        [ForeignKey("ContactId")]
         public virtual Contact Contact { get; set; }
     }
 }

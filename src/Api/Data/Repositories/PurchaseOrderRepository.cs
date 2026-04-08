@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Logging;
 using System.Linq;
 
 namespace Api.Data
+
 {
     public class PurchaseOrderRepository : EfRepository<PurchaseOrderHeader>, IPurchaseOrderRepository
     {

@@ -1,4 +1,12 @@
-﻿
+﻿@* all done files are here *@
+    @* 
+    payment 
+    vendor 
+    purchaseOrder
+    Quotations
+    SecurityRepository
+    EfRepository
+     *@
 <canvas width="500" height="250"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
@@ -10,6 +18,21 @@
      var margin = { top: 20, right: 20, bottom: 30, left: 40 },
          width = canvas.width - margin.left - margin.right,
          height = canvas.height - margin.top - margin.bottom;
+
+//weight code
+    var weight =23000;
+        var z= d3.scaleBand.Math.rangeRound([0,weight]).padding(0,1);
+            d4.json("@ViewBag.ApiMontlySales", function(data){
+                data.forEach (function(d4){
+                    d4.amount= +d4.amount;
+                    d4.monthSalary=+d4.monthlySalary;
+                    d4.weeklySalary=+d4.weeklySalary;
+                    d4.dailySalary=+d4.dailySalary;
+                    d4.hourlySalary=+d4.hourlySalary;;   
+                });
+            });
+
+
 
      var x = d3.scaleBand()
          .rangeRound([0, width])
@@ -27,9 +50,9 @@
              d.amount = +d.amount;
          });
 
-
          x.domain(data.map(function (d) { return d.month; }));
          y.domain([0, d3.max(data, function (d) { return d.amount; })]);
+         z.domain(data.map(function (d3) { return d3.amount; }));
 
          var yTickCount = 10,
              yTicks = y.ticks(yTickCount),
@@ -60,9 +83,50 @@
          context.textAlign = "right";
          context.textBaseline = "middle";
          yTicks.forEach(function (d) {
-             //context.fillText(yTickFormat(d), -9, y(d));
+            //use this file for text fill tick format
+             context.fillText(yTickFormat(d), -9, y(d));
              context.fillText(d, -9, y(d));
-         });
+             });
+   
+        //main code from _MonthlySales
+        context.beginPath();
+        context.moveTo(5.5, 0 + 8.5);
+        context.lineTo(8.5, 0 + 8);
+        context.lineTo(0.5, width + 0.5);
+        context.lineTo(-1.5, width + 10 );
+        context.strokeStyle = "white";
+        context.stroke();
+
+        context.save();
+        context.rotate(-Math.PI / 10); //-.31416 18 deg
+        //optional
+        context.rotate(-Math.PI / 15); //-.20944 12 deg
+        context.textAlign = "right";
+        context.textBaseline = "top-left";
+        context.font = "bold 14px sans-serif";
+        context.fillText("amount", -8.5, 13.5);
+        context.restore();
+        context.strokeStyle = "white";
+        context.stroke();
+        context.fillStyle = "CadetBlue";
+        context.strokeStyle = "black";
+        context.stroke();
+        context.font = "bold 14px sans-serif";
+        context.fillText("Monthly Sales", 200, canvas.height - 200); //45000-200-200 = 44600 this data might be wrong
+        // if wrong change the canvas height
+
+        //main code math ends here
+        
+        // code logic for weight
+            data.forEach(function (d3,d4) {
+                context.fillStyle(d4.amount, x(d4.month) +26,y(d4.amount)-5,weight-y(d4.amount))
+            context.fillText(d3.amount, x(d3.month) + 26, y(d3.amount) - 8.5, weight - y(d3.amount)); //x codinate=26+6=32 y cordinate=45-8.5= 36.5
+            context.fillRect(x(d3.month), y(d3.amount), x.bandwidth(), weight - y(d3.amount)); //x cordinate=9+26=35 y cordinate= 45000
+            context.font = "normal 15px Roboto";
+        });
+        //code logic ends here
+
+        //main code from _MonthlySales ends here
 
          context.beginPath();
          context.moveTo(-6.5, 0 + 0.5);
@@ -71,7 +135,9 @@
          context.lineTo(-6.5, height + 0.5);
          context.strokeStyle = "black";
          context.stroke();
-
+         context.fillStyle="steelblue";
+         context.stroleStyle="lightgreen"
+        
          context.save();
          context.rotate(-Math.PI / 2);
          context.textAlign = "right";
@@ -86,7 +152,8 @@
          context.stroke();
          context.font = "bold 13px sans-serif";
          context.fillText("Monthly Sales", 250, canvas.height - 260);
-
+         context.fillText("Main Sales Per Year",250, canvas.height-280);
+         context.fillRect("Main Per Year Sales",250,canvas.height-290)
          data.forEach(function (d) {
              context.fillText(d.amount, x(d.month) + 35, y(d.amount) - 10, height - y(d.amount));
              context.fillRect(x(d.month), y(d.amount), x.bandwidth(), height - y(d.amount));

@@ -40,7 +40,20 @@ namespace Dto.Financial
             }
             return sum;
         }
+
+        //just for the regular purposr, will delete later after the completion of this project
+
+        private decimal GetmainAmount(){
+            decimal sum= 0;
+            foreach(var entry in JournalEntryLines){
+                if(entry.DrCr == 3)
+                sum+entry.Amount.GetValueOrDefault();
+            }
+            return sum;
+        }
     }
+
+  
 
     public class JournalEntryLine : BaseDto
     {

@@ -1,5 +1,5 @@
 AccountCode,AccountName,ParentAccountCode,AccountClass,ContraAccount,Cash,Company,Sign
-10000,Assets,,1,FALSE,FALSE,100,DR
+10000,Assets,1,1,FALSE,FALSE,100,DR
 10100,Current Assets,10000,1,FALSE,FALSE,100,DR
 10110,Cash in Hand and in Bank,10100,1,FALSE,TRUE,100,DR
 10111,Regular Checking Account,10110,1,FALSE,FALSE,100,DR
@@ -28,7 +28,7 @@ AccountCode,AccountName,ParentAccountCode,AccountClass,ContraAccount,Cash,Compan
 14004,Accumulated Depreciations-Building,10300,1,TRUE,FALSE,100,CR
 14005,Accumulated Depreciation-Building Improvements,10300,1,TRUE,FALSE,100,CR
 15000,Other Assets,10000,1,FALSE,FALSE,100,DR
-20000,Liabilities,,2,FALSE,FALSE,100,CR
+20000,Liabilities,NULL,2,FALSE,FALSE,100,CR
 20100,Current Liabilities,20000,2,FALSE,FALSE,100,CR
 20110,Accounts Payable,20100,2,FALSE,FALSE,100,CR
 20120,Customer Advances,20100,2,FALSE,FALSE,100,CR
@@ -44,7 +44,7 @@ AccountCode,AccountName,ParentAccountCode,AccountClass,ContraAccount,Cash,Compan
 20400,Other Current Liabilities,20100,2,FALSE,FALSE,100,CR
 20500,Non-current Liabilities,20000,2,FALSE,FALSE,100,CR
 20600,Other Long-term Liabilities,20000,2,FALSE,FALSE,100,CR
-30000,Equity,,3,FALSE,FALSE,100,CR
+30000,Equity,NULL,3,FALSE,FALSE,100,CR
 30100,Member Capital,30000,3,FALSE,FALSE,100,CR
 30200,Capital Surplus,30000,3,FALSE,FALSE,100,CR
 30300,Retained Surplus,30000,3,FALSE,FALSE,100,CR
@@ -58,7 +58,7 @@ AccountCode,AccountName,ParentAccountCode,AccountClass,ContraAccount,Cash,Compan
 40400,Sales Discounts,40000,4,FALSE,FALSE,100,CR
 40500,Shipping and Handling,40000,4,FALSE,FALSE,100,CR
 40600,Other Income,40000,4,FALSE,FALSE,100,CR
-50000,Expenses,,5,FALSE,FALSE,100,DR
+50000,Expenses,NULL,5,FALSE,FALSE,100,DR
 50100,General and Admin Expenses,50000,5,FALSE,FALSE,100,DR
 50101,Salary Expenses,50100,5,FALSE,FALSE,100,DR
 50102,Wages Expenses,50100,5,FALSE,FALSE,100,DR

@@ -17,6 +17,7 @@ namespace Api.Data
         public ApiDbContext(DbContextOptions<ApiDbContext> options)
             : base(options)
         {
+    
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -237,8 +238,15 @@ namespace Api.Data
             builder.Seed();
             /* Medhat END */
 
+            //new Medhat changes start
+            // buikder.Entity<SalesDeliveryLines>()
+            //     .Property(p => p.Discount)
+            //     .HasColumnType("decimal(18, 4)");   
+        
             
         }
+
+        // for future use only. 
         public virtual DbSet<Account> Accounts { get; set; }
         public virtual DbSet<AccountClass> AccountClasses { get; set; }
         public virtual DbSet<Address> Addresses { get; set; }
@@ -327,6 +335,8 @@ namespace Api.Data
                 }
                 catch
                 {
+                    auditLog.RecordId = recid;
+                    main.SaveChanges();
                     continue;
                 }
             }

@@ -1,253 +1,169 @@
 ﻿using System;
 using System.Linq;
-using Core.Data;
-using Core.Domain;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Core.Data;
+using Core.Domain;
 
 namespace Api.Data
 {
-    public class EfRepository<T> : IRepository<T> where T : BaseEntity
+    public class EfRepository<T>(ILogger<EfRepository<T>> logger, ApiDbContext context) : IRepository<T> where T : BaseEntity
     {
-        private readonly ApiDbContext _context;
-        private readonly ILogger<T> _logger;
+        private readonly ApiDbContext _context = context ?? throw new ArgumentNullException(nameof(context));
+        private readonly ILogger<EfRepository<T>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         private DbSet<T> _entities;
-
-        public EfRepository(ILogger<T> logger, ApiDbContext context)
-        {
-            _logger = logger;
-            _context = context;
-        }
 
         #region Properties
 
-         <summary>
-        /// Gets a table
-         </summary>
-        public virtual IQueryable<T> Table
-        {
-            get
-            {
-                return this.Entities;
-            }
-        }
 
-        <summary>
-         </summary>
-        public virtual IQueryable<T> TableNoTracking
-        {
-            get
-            {
-                return this.Entities.AsNoTracking();
-            }
-        }
+        public virtual IQueryable<T> Table => Entities;
 
-        /// <summary>
-        /// Entities
-        /// </summary>
+        public virtual IQueryable<T> TableNoTracking => Entities.AsNoTracking();
+
         protected virtual DbSet<T> Entities
         {
             get
             {
-                if (_entities == null)
-                    _entities = _context.Set<T>();
-                return _entities;
+                return _entities ??= _context.Set<T>();
             }
         }
 
-        #endregion
-        #region Ctor
-
-
-        #endregion
-        #region Methods
-
-        /// <summary>
-        /// Get entity by identifier
-        /// </summary>
-        /// <param name="id">Identifier</param>
-        /// <returns>Entity</returns>
         public virtual T GetById(object id)
         {
-            return this.Entities.FirstOrDefault(x => x.Id == (int)id);
+            if (id == null) throw new ArgumentNullException(nameof(id));
+            var key = Convert.ToInt32(id);
+            return Entities.FirstOrDefault(x => x.Id == key);
         }
 
-        /// <summary>
-        /// Insert entity
-        /// </summary>
-        /// <param name="entity">Entity</param>
         public virtual void Insert(T entity)
         {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+
             try
             {
-                if (entity == null)
-                    throw new ArgumentNullException("entity");
-
-                this.Entities.Add(entity);
-
-                this._context.SaveChanges();
-
+                Entities.Add(entity);
+                _context.SaveChanges();
             }
-            //for db error check 
-            catch (DbEntityValidationException dbEx)
+            catch (DbUpdateException dbEx)
             {
-               var msg = string.Empty;
-
-               foreach (var validationErrors in dbEx.EntityValidationErrors)
-                   foreach (var validationError in validationErrors.ValidationErrors)
-                       msg += string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage) + Environment.NewLine;
-
-               var fail = new Exception(msg, dbEx);
-              
-               throw fail;
+                _logger.LogError(dbEx, "Error inserting entity of type {EntityType}", typeof(T));
+                throw;
             }
-            catch (Exception ex) {
-                _logger.LogError(ex.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error inserting entity of type {EntityType}", typeof(T));
+                throw;
             }
         }
 
-        <summary>
-        /// Insert entities
-         </summary>
-         <param name="entities">Entities</param>
         public virtual void Insert(IEnumerable<T> entities)
         {
+            if (entities == null) throw new ArgumentNullException(nameof(entities));
+
             try
             {
-                if (entities == null)
-                    throw new ArgumentNullException("entities");
-
                 foreach (var entity in entities)
-                    this.Entities.Add(entity);
-
-                this._context.SaveChanges();
-            }
-
-            //for errors using third coment
-            catch (DbEntityValidationException dbEx)
-            {
-               var msg = string.Empty;
-
-               foreach (var validationErrors in dbEx.EntityValidationErrors)
-                   foreach (var validationError in validationErrors.ValidationErrors)
-                       msg += string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage) + Environment.NewLine;
-
-               var fail = new Exception(msg, dbEx);
-               
-               throw fail;
-            }
-            catch (Exception ex) {
-                _logger.LogError(ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// Update entity
-        /// </summary>
-        /// <param name="entity">Entity</param>
-        public virtual void Update(T entity)
-        {
-            try
-            {
-                if (entity == null)
-                    throw new ArgumentNullException("entity");
+                    Entities.Add(entity);
 
                 _context.SaveChanges();
             }
-            catch (DbEntityValidationException dbEx)
+            catch (DbUpdateException dbEx)
             {
-               var msg = string.Empty;
-
-               foreach (var validationErrors in dbEx.EntityValidationErrors)
-                   foreach (var validationError in validationErrors.ValidationErrors)
-                       msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
-
-               var fail = new Exception(msg, dbEx);
-               
-               throw fail;
+                _logger.LogError(dbEx, "Error inserting entities of type {EntityType}", typeof(T));
+                throw;
             }
-            catch (Exception ex) {
-                _logger.LogError(ex.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error inserting entities of type {EntityType}", typeof(T));
+                throw;
             }
         }
 
-        /// <summary>
-        /// Delete entity
-        /// </summary>
-        /// <param name="entity">Entity</param>
+        public virtual void Update(T entity)
+        {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+
+            try
+            {
+                _context.Update(entity);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, "Error updating entity of type {EntityType}", typeof(T));
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error updating entity of type {EntityType}", typeof(T));
+                throw;
+            }
+        }
+
         public virtual void Delete(T entity)
         {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+
             try
             {
-                if (entity == null)
-                    throw new ArgumentNullException("entity");
-
-                this.Entities.Remove(entity);
-
-                this._context.SaveChanges();
+                Entities.Remove(entity);
+                _context.SaveChanges();
             }
-            catch (DbEntityValidationException dbEx)
+            catch (DbUpdateException dbEx)
             {
-               var msg = string.Empty;
-
-               foreach (var validationErrors in dbEx.EntityValidationErrors)
-                   foreach (var validationError in validationErrors.ValidationErrors)
-                       msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
-
-               var fail = new Exception(msg, dbEx);
-              
-               throw fail;
+                _logger.LogError(dbEx, "Error deleting entity of type {EntityType}", typeof(T));
+                throw;
             }
-            catch (Exception ex) {
-                _logger.LogError(ex.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error deleting entity of type {EntityType}", typeof(T));
+                throw;
+            }
+            catch (ArgumentUpdate argEx)
+            {
+                _logger.LogError(argEx, "Unexpected error deleting entity of type {EntityType}", typeof(T));
+                throw;
             }
         }
 
-        /// <summary>
-        /// Delete entities
-        /// </summary>
-        /// <param name="entities">Entities</param>
+
         public virtual void Delete(IEnumerable<T> entities)
         {
+            if (entities == null) throw new ArgumentNullException(nameof(entities));
+
             try
             {
-                if (entities == null)
-                    throw new ArgumentNullException("entities");
-
                 foreach (var entity in entities)
-                    this.Entities.Remove(entity);
+                    Entities.Remove(entity);
 
-                this._context.SaveChanges();
+                _context.SaveChanges();
             }
-
-            // for new error 
-            catch (DbEntityValidationException dbEx)
+            catch (DbUpdateException dbEx)
             {
-               var msg = string.Empty;
-
-               foreach (var validationErrors in dbEx.EntityValidationErrors)
-                   foreach (var validationError in validationErrors.ValidationErrors)
-                       msg += Environment.NewLine + string.Format("Property: {0} Error: {1}", validationError.PropertyName, validationError.ErrorMessage);
-
-               var fail = new Exception(msg, dbEx);
-               
-               throw fail;
+                _logger.LogError(dbEx, "Error deleting entities of type {EntityType}", typeof(T));
+                throw;
             }
-            catch (Exception ex) {
-                _logger.LogError(ex.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error deleting entities of type {EntityType}", typeof(T));
+                throw;
             }
         }
 
-        public IQueryable<T> GetAllIncluding(params System.Linq.Expressions.Expression<Func<T, object>>[] includeProperties)
+        public IQueryable<T> GetAllIncluding(params Expression<Func<T, object>>[] includeProperties)
         {
-            IQueryable<T> queryable = Entities;
-            foreach (System.Linq.Expressions.Expression<Func<T, object>> includeProperty in includeProperties)
+            IQueryable<T> query = Entities;
+            if (includeProperties != null)
             {
-                queryable = queryable.Include<T, object>(includeProperty);
+                foreach (var includeProperty in includeProperties)
+                {
+                    query = query.Include(includeProperty);
+                }
             }
 
-            return queryable;
+            return query;
         }
 
         #endregion

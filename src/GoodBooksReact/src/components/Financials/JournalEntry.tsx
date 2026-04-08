@@ -11,19 +11,46 @@ import JournalEntryStore from "../Shared/Stores/Financials/JournalEntryStore";
 const store = new JournalEntryStore();
 
 class ValidationErrors extends React.Component {
+
+    
     render() {
+
+        
         if (store.validationErrors !== undefined && store.validationErrors.length > 0) {
             const errors: string[] = [];
             store.validationErrors.map(function (item: any, index: number) {
                 const errors: React.ReactNode[] = [];
                 errors.push(<li key={index}>{item}</li>);
             });
+
+            const[gender,setGender]=React.useState("female");
+            const[country,setCountry]=React.useState("")
+            
             return (
                 <div>
                     <ul>
                         {errors}
                     </ul>
+                    {/* extra react code */}
+                    <input type="radio" name="male" id="male" onChange={(e)=>setGender(e.target.value)} value={male} checked={gender==male} />
+                     <label htmlFor="male">Male</label>  
+
+                      <input type="radio" name="female" id="female" onChange={(e)=>setGender(e.target.value)} value={female} checked={gender==female}/>
+                     <label htmlFor="female">Female</label> 
+
+                        <select defaultValue={"india"} onChange={()=>setCountry(country)}>
+                            <option value="nepal">Nepal</option>
+                            <option value="india">India</option>
+                            <option value="england">England</option>
+                            <option value="australia">Australia</option>
+                        </select>
+
+                        <h1>{country}</h1>
+
+                        {/* extra react code finish */}
                 </div>
+
+                
             );
         }
         return null;
@@ -96,11 +123,24 @@ class PostJournalEntryButton extends React.Component {
 
     render() {
         return (
+            <>
             <input type="button" value="Post" onClick={ this.postOnClick.bind(this) }
                 className={!store.journalEntry.posted && store.journalEntry.readyForPosting && !store.editMode
                     ? "btn btn-sm btn-primary btn-flat btn-danger pull-right"
                     : "btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"} />
-        );
+
+                    // error files started from here
+
+        <input type="button" value="Post" onClick={this.postOnClick.bind(this)}
+        className={!store.journalEntry.posted && store.journalEntry.readyForPosting && !store.editMode
+            ?"btn btn-lg btn-secondary btn-flat btn-warnig pull-right" 
+            :"btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"} />
+        </>
+
+        // remaining codes for 6 pm review
+
+
+                );
     }
 }
 const ObservedPostJournalEntryButton = observer(PostJournalEntryButton);
@@ -185,7 +225,9 @@ class JournalEntryLines extends React.Component {
     }
     render() {
         const lineItems: JSX.Element[] = [];
-        for (let i = 0; i < store.journalEntry.journalEntryLines.length; i++) {
+        for (let i = 0; i < store.journalEntry.journalEntryLines.length; i++)
+            // main key implamented
+            {
             lineItems.push(
                 <tr key={i}>
                     <td><SelectAccount store={store} row={i} selected={store.journalEntry.journalEntryLines[i].accountId} /></td>

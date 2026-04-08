@@ -40,6 +40,7 @@ System.Console.WriteLine("DB Connection String: " + connectionString);
 
 builder.Services
     //.AddEntityFrameworkSqlServer()
+    .AddDefaultTokenProviders()
     .AddDbContext<ApiDbContext>(options => options.UseSqlServer(connectionString))
     .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery) // Add this line
     .AddDbContext<ApplicationIdentityDbContext>(options => options.UseSqlServer(connectionString));
@@ -49,13 +50,16 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationIdentityDbContext>()
     .AddDefaultTokenProviders();
 
-Add cors
+
 builder.Services.AddCors(o => o.AddPolicy("AllowAll", builder =>
 {
     builder
     .AllowAnyOrigin()
     .AllowAnyMethod()
     .AllowAnyHeader();
+    //for footer and other items use only
+    .AllowAnyFooter();
+    AllowAll();
 }));
 
 var AllowAllOrigins = "AllowAll";
@@ -88,7 +92,8 @@ builder.Services.AddScoped(typeof(Services.Purchasing.IPurchasingService), typeo
 builder.Services.AddScoped(typeof(Services.Administration.IAdministrationService), typeof(Services.Administration.AdministrationService));
 builder.Services.AddScoped(typeof(Services.Security.ISecurityService), typeof(Services.Security.SecurityService));
 builder.Services.AddScoped(typeof(Services.TaxSystem.ITaxService), typeof(Services.TaxSystem.TaxService));
-
+builder.Services.AddScoped(typeof(Services.LoginSystem.ILoginServices), typeof(Services.LoginSystem.LoginServices));
+builder.Services.AddScoped(typeof(Services.RegisterSystem.IRegisterService), typeof(Services.RegisterSystem.RegisterService));
 
 var app = builder.Build();
 
@@ -99,7 +104,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-//app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors(AllowAllOrigins);
 app.UseAuthorization();

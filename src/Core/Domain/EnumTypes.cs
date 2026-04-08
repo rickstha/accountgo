@@ -36,7 +36,10 @@ namespace Core.Domain
         PurchaseCreditMemo,
         PurchaseInvoicePayment,
         JournalEntry,
-        CustomerAllocation
+        CustomerAllocation,
+        VenderLocation,
+        VendorMainContact,
+        Customercontact
     }
 
     public enum AccountTypes
@@ -106,7 +109,11 @@ namespace Core.Domain
         Item,
         Customer,
         Vendor,
-        Contact
+        Contact,
+        CustomerAllocation,
+        VenderLocation,
+        VendorMainContact,
+        Customercontact
     }
 
     public enum AddressTypes
@@ -173,6 +180,8 @@ namespace Core.Domain
         Closed = 3,
         Void = 4,
         [Display(Name = "Closed - Order Created")]
-        ClosedOrderCreated = 5
+        ClosedOrderCreated = 5,
+        [Display(Name = "Closed - No Order")]
+        ClosedNoOrder = 6
     }
 }

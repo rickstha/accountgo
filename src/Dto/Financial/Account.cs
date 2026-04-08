@@ -17,7 +17,7 @@ namespace Dto.Financial
         public decimal CreditBalance { get; set; }
         public decimal TotalBalance { get { return GetTotalBalance(); } }
         public decimal TotalDebitBalance { get { return GetTotalDebit(); } }
-        public decimal TotalCreditBalance { get { return GetTotalCredit(); } }
+        public decimal TotalCreditBalance { get { return GeTotalCredit(); } }
         public IList<Account> ChildAccounts { get; set; }
 
         public Account()
@@ -57,6 +57,19 @@ namespace Dto.Financial
             foreach (var account in accounts)
             {
                 sum += account.DebitBalance;
+
+                if (account.ChildAccounts.Count > 0)
+                {
+                    ComputeDebit(account.ChildAccounts, ref sum);
+                }
+            }
+        }
+
+          private void ComputeDebit(IList<Account> accounts, ref decimal mainBalance)
+        {
+            foreach (var account in accounts)
+            {
+                mainBalance += account.DebitBalance;
 
                 if (account.ChildAccounts.Count > 0)
                 {

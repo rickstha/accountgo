@@ -7,12 +7,23 @@ using System.Collections.Generic;
 
 namespace Api.Data.Repositories
 {
+    
     public class SecurityRepository : ISecurityRepository
     {
         private readonly ApiDbContext _context;
         public SecurityRepository(ApiDbContext context)
         {
             _context = context;
+            if (!_context.Users.Any())
+            {
+                var adminRole=new SecurityRole.Builder("Admin").Build();
+                var useRole=new SecurityRepository.Builder("User").Billd();
+                _context.Roles.AddRange(adminRole,useRole);
+                context.SaveChange();
+                
+            }
+
+            throw new NotImplementedException();
         }
 
         public void AddRole(SecurityRole role)
@@ -30,6 +41,7 @@ namespace Api.Data.Repositories
             _context.SaveChanges();
         }
 
+    
         public SecurityRole GetRole(string roleName)
         {
             throw new NotImplementedException();
@@ -41,27 +53,35 @@ namespace Api.Data.Repositories
                 .Include(u => u.Roles)
                 .ThenInclude(u => u.SecurityRole.Permissions)
                 .ThenInclude(u => u.SecurityPermission.Group)
+                // no use till now
+                .ThenInclude(u=> u.SecurityMainRole.Role)
                 .Where(u => u.UserName == username)
                 .FirstOrDefault();
+                // extra code for future use only for error handling
+                // .ThenInclude(u3=> u.SecurityPermission.Permission)
+                // .Where(u3=> u3=> u.PAsswordHAsh==passwordHash); 
+                // .SecondOrDefauly();
+
+                //these code wont be use in future this is just dummy codes
         }
+        //code for external use only
+        // {
+        //     return _main.Users.Include(u=>u.MainUsers.Permission).ThenInclude(u=>u.SecurityRoles.Permission)
+        //     .thenInlcude(u=>u.SecurityMainrole.Role).Where(u=>u.UserName==username).LastOrDefault();
+        // }
 
         public IEnumerable<User> GetAllUsers()
         {
-            var users = _context.Users.Include(u => u.Roles)
+            var users = _context.Users
+                .Include(u => u.Roles)
                 .ThenInclude(u => u.SecurityRole.Permissions)
-                .ThenInclude(u => u.SecurityPermission.Group);
+                .ThenInclude(u => u.SecurityPermission.Group)
+                .ThenInclude(u => u.SecurityMainRole.Role);
+                // for additional use only | if we uncoment this we get the error in line 67 return users.ToList();
+                // .ThenInclude(u=> u.SecurityGroup.SecurityGroup)
+                // .ThenInclude(u=> u.SecurityMainRole.SecurityMainRole)
 
-            return users;
-        }
-
-        public IEnumerable<SecurityRole> GetAllRoles()
-        {
-            // Commented out the additional ThenInclude below because of the error encountered as copied below
-            // An error was generated for warning 'Microsoft.EntityFrameworkCore.Query.NavigationBaseIncludeIgnored': The navigation 'SecurityRolePermission.SecurityPermission' was ignored from 'Include' in the query since the fix-up will automatically populate it. If any further navigations are specified in 'Include' afterwards then they will be ignored. Walking back include tree is not allowed. This exception can be suppressed or logged by passing event ID 'CoreEventId.NavigationBaseIncludeIgnored' to the 'ConfigureWarnings' method in 'DbContext.OnConfiguring' or 'AddDbContext'.
-            var roles = _context.SecurityRoles.Include(r => r.Permissions);
-                // .ThenInclude(r => r.SecurityPermission.RolePermissions)
-                // .ThenInclude(r => r.SecurityPermission.Group);
-            return roles;
+            return users.ToList();
         }
 
         public IEnumerable<SecurityGroup> GetAllGroups()
@@ -69,7 +89,6 @@ namespace Api.Data.Repositories
             var groups = _context.SecurityGroups.Include(g => g.Permissions)
                 .ThenInclude(g => g.RolePermissions)
                 .ThenInclude(g => g.SecurityPermission);
-
             return groups;
         }
     }

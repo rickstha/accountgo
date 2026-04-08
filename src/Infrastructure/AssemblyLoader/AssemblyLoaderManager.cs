@@ -6,6 +6,7 @@ using Infrastructure.Module;
 using Infrastructure.Plugin;
 using Newtonsoft.Json;
 
+
 namespace Infrastructure.AssemblyLoader
 {
     public class AssemblyLoaderManager
@@ -42,7 +43,16 @@ namespace Infrastructure.AssemblyLoader
                 Console.WriteLine(ex.Message);
             }
 
-            return (modulesAssemblies, pluginAssemblies);
+            return (modulesAssemblies, pluginAsse mblies);
         }
     }
 }
+
+// constant.cs edit
+// customAssemblyLoadmanager.cs edit loader textcontent
+// AssemblyInfo.cs edit
+
+// Infrastructure/Constants.cs System
+// Security Permission access edit 
+
+// 3 pm monday japan

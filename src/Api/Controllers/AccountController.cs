@@ -16,7 +16,10 @@ namespace Api.Controllers
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IAdministrationService administrationService,
-            ISecurityService securityService
+            ISecurityService securityService,
+            SignUpManager<ApplicationUser> signUpManager,
+            ForgotPassManager<ApplicationUser> forgotPassManager
+            IAdminPanelManager administrationService
             )
         {
             _userManager = userManager;
@@ -33,10 +36,18 @@ namespace Api.Controllers
             }
 
             // error check detected and uncoment
-            var error = await _signInManager.PreSignInCheck(user);
+            var error = await _signInManager.PreSignInCheck(user); // check signIn error
+
             if (error != null)
             {
                return error;
+            }
+
+            if (user!=null){
+                redirect(userManager)
+            }
+            else{
+                var nxtError = await _userManager.PreignInCheck(user);
             }
 
             if (await IsLockedOut(user))
@@ -55,8 +66,10 @@ namespace Api.Controllers
                 }
                 if (await _userManager.CheckPasswordAsync(applicationUser, password))
                 {
-                    //await ResetLockout(user);
+                    //no need to Reset user
+                    await ResetLockout(user);
                     return new ObjectResult(_userManager.FindByEmailAsync(applicationUser.Email));
+                    return new ObjectResult(SignInManager.FindByEmailAsync(applicationUser.Login))
                 }
             }
             catch(System.Exception ex)
@@ -78,7 +91,7 @@ namespace Api.Controllers
                }
             }
             return SignInResult.Failed;
-            If we got this far, something failed, redisplay form
+            // If we got this far, something failed, redisplay form
             return new BadRequestObjectResult(Microsoft.AspNetCore.Identity.SignInResult.Failed);
         }
 
