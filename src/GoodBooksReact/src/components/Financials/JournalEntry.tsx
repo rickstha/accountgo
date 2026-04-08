@@ -9,6 +9,7 @@ import SelectDebitCredit from "../Shared/Components/SelectDebitCredit";
 import JournalEntryStore from "../Shared/Stores/Financials/JournalEntryStore";
 
 const store = new JournalEntryStore();
+const items = new JournalEntryItems();
 
 class ValidationErrors extends React.Component {
 
@@ -135,6 +136,15 @@ class PostJournalEntryButton extends React.Component {
         className={!store.journalEntry.posted && store.journalEntry.readyForPosting && !store.editMode
             ?"btn btn-lg btn-secondary btn-flat btn-warnig pull-right" 
             :"btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"} />
+
+
+
+            <input type="button" value="Upgrade" onClick={ this.postOnClick.bind(this)}
+            className={!items.journalEntry.posted && items.journalEntry.readyItems && !items.editMode
+                  ? "btn btn-sm btn-warning btn-flat btn-danger pull-left"
+                    : "btn btn-sm btn-primary btn-flat btn-danger pull-left inactiveLink"
+                 }
+             />
         </>
 
         // remaining codes for 6 pm review
