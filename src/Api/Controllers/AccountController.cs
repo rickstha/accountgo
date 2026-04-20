@@ -14,12 +14,7 @@ namespace Api.Controllers
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
-            IAdministrationService administrationService,
-            ISecurityService securityService,
-            SignUpManager<ApplicationUser> signUpManager,
-            ForgotPassManager<ApplicationUser> forgotPassManager
-            IAdminPanelManager administrationService
+            IAdministrationService administrationService
             )
         {
             _userManager = userManager;
@@ -28,71 +23,50 @@ namespace Api.Controllers
 
         [HttpPost]
         [Route("SignIn")]
-        public async System.Threading.Tasks.Task<IActionResult> SignIn([FromBody]dynamic loginViewModel)
+        public async System.Threading.Tasks.Task<IActionResult> SignIn([FromBody] dynamic loginViewModel)
         {
             if (loginViewModel == null)
             {
                 throw new System.ArgumentNullException(nameof(loginViewModel));
             }
 
-            // error check detected and uncoment
-            var error = await _signInManager.PreSignInCheck(user); // check signIn error
-
-            if (error != null)
-            {
-               return error;
-            }
-
-            if (user!=null){
-                redirect(userManager)
-            }
-            else{
-                var nxtError = await _userManager.PreignInCheck(user);
-            }
-
-            if (await IsLockedOut(user))
-            {
-               return await LockedOut(user);
-            }
             string password = loginViewModel.Password;
             string username = loginViewModel.Email;
-            
+
+            var user = await _userManager.FindByEmailAsync(username);
+            if (user == null)
+            {
+                return new BadRequestObjectResult("Invalid login attempt.");
+            }
+
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                return new BadRequestObjectResult("User account is locked out.");
+            }
+
             try
             {
-                var applicationUser = await _userManager.FindByEmailAsync(username);
-                if (applicationUser == null)
+                if (await _userManager.CheckPasswordAsync(user, password))
                 {
-                    System.Console.WriteLine($"Unable to load user with email '{username}'.");
-                }
-                if (await _userManager.CheckPasswordAsync(applicationUser, password))
-                {
-                    //no need to Reset user
-                    await ResetLockout(user);
-                    return new ObjectResult(_userManager.FindByEmailAsync(applicationUser.Email));
-                    return new ObjectResult(SignInManager.FindByEmailAsync(applicationUser.Login))
+                    await _userManager.ResetAccessFailedCountAsync(user);
+                    return new ObjectResult(user);
                 }
             }
-            catch(System.Exception ex)
+            catch (System.Exception ex)
             {
                 System.Console.WriteLine(ex.StackTrace);
             }
 
-                //not needed
-
-            Logger.LogWarning(2, "User {userId} failed to provide the correct password.", await UserManager.GetUserIdAsync(user));
-
-            if (_userManager.SupportsUserLockout && lockoutOnFailure)
+            if (_userManager.SupportsUserLockout)
             {
-               // If lockout is requested, increment access failed count which might lock out the user
-               await _userManager.AccessFailedAsync(user);
-               if (await _userManager.IsLockedOutAsync(user))
-               {
-                   return await LockedOut(user);
-               }
+                await _userManager.AccessFailedAsync(user);
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    return new BadRequestObjectResult("User account is locked out.");
+                }
             }
-            return SignInResult.Failed;
-            // If we got this far, something failed, redisplay form
-            return new BadRequestObjectResult(Microsoft.AspNetCore.Identity.SignInResult.Failed);
+
+            return new BadRequestObjectResult("Invalid login attempt.");
         }
 
         [HttpPost]

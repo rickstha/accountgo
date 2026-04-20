@@ -9,54 +9,55 @@ import SelectDebitCredit from "../Shared/Components/SelectDebitCredit";
 import JournalEntryStore from "../Shared/Stores/Financials/JournalEntryStore";
 
 const store = new JournalEntryStore();
-const items = new JournalEntryStore();
 
-class ValidationErrors extends React.Component {
+const ValidationErrors = () => {
+    const [gender, setGender] = React.useState("female");
+    const [country, setCountry] = React.useState("india");
 
-    
-    render() {
-
-        
-        if (store.validationErrors !== undefined && store.validationErrors.length > 0) {
-            const errors: string[] = [];
-            store.validationErrors.map(function (item: any, index: number) {
-                const errors: React.ReactNode[] = [];
-                errors.push(<li key={index}>{item}</li>);
-            });
-
-            const[gender,setGender]=React.useState("female");
-            const[country,setCountry]=React.useState("")
-            
-            return (
-                <div>
-                    <ul>
-                        {errors}
-                    </ul>
-                    {/* extra react code */}
-                    <input type="radio" name="male" id="male" onChange={(e)=>setGender(e.target.value)} value={"male"} checked={gender=="male"} />
-                     <label htmlFor="male">Male</label>  
-
-                      <input type="radio" name="female" id="female" onChange={(e)=>setGender(e.target.value)} value={"female"} checked={gender=="female"}/>
-                     <label htmlFor="female">Female</label> 
-
-                        <select defaultValue={"india"} onChange={()=>setCountry(country)}>
-                            <option value="nepal">Nepal</option>
-                            <option value="india">India</option>
-                            <option value="england">England</option>
-                            <option value="australia">Australia</option>
-                        </select>
-
-                        <h1>{country}</h1>
-
-                        {/* extra react code finish */}
-                </div>
-
-                
-            );
-        }
+    if (!store.validationErrors || store.validationErrors.length === 0) {
         return null;
     }
-}
+
+    const errors = store.validationErrors.map((item: any, index: number) => (
+        <li key={index}>{item}</li>
+    ));
+
+    return (
+        <div>
+            <ul>
+                {errors}
+            </ul>
+            <input
+                type="radio"
+                name="gender"
+                id="male"
+                onChange={(e) => setGender(e.target.value)}
+                value="male"
+                checked={gender === "male"}
+            />
+            <label htmlFor="male">Male</label>
+
+            <input
+                type="radio"
+                name="gender"
+                id="female"
+                onChange={(e) => setGender(e.target.value)}
+                value="female"
+                checked={gender === "female"}
+            />
+            <label htmlFor="female">Female</label>
+
+            <select value={country} onChange={(e) => setCountry(e.target.value)}>
+                <option value="nepal">Nepal</option>
+                <option value="india">India</option>
+                <option value="england">England</option>
+                <option value="australia">Australia</option>
+            </select>
+
+            <h1>{country}</h1>
+        </div>
+    );
+};
 const ObservedValidationErrors = observer(ValidationErrors);
 
 class EditButton extends React.Component {
@@ -71,7 +72,7 @@ class EditButton extends React.Component {
     }
     render() {
         return (
-            <a href="#" id="linkEdit" onClick={this.onClickEditButton}
+            <a href="#" id="linkEdit" onClick={this.onClickEditButton.bind(this)}
                 className={!store.journalEntry.posted && !store.editMode
                     ? "btn"
                     : "btn inactiveLink"}>
@@ -124,33 +125,15 @@ class PostJournalEntryButton extends React.Component {
 
     render() {
         return (
-            <>
-            <input type="button" value="Post" onClick={ this.postOnClick.bind(this) }
+            <input
+                type="button"
+                value="Post"
+                onClick={this.postOnClick.bind(this)}
                 className={!store.journalEntry.posted && store.journalEntry.readyForPosting && !store.editMode
                     ? "btn btn-sm btn-primary btn-flat btn-danger pull-right"
-                    : "btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"} />
-
-                    // error files started from here
-
-        <input type="button" value="Post" onClick={this.postOnClick.bind(this)}
-        className={!store.journalEntry.posted && store.journalEntry.readyForPosting && !store.editMode
-            ?"btn btn-lg btn-secondary btn-flat btn-warnig pull-right" 
-            :"btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"} />
-
-
-
-            <input type="button" value="Upgrade" onClick={ this.postOnClick.bind(this)}
-            className={!items.journalEntry.posted && items.journalEntry.readyForPosting && !items.editMode
-                  ? "btn btn-sm btn-warning btn-flat btn-danger pull-left"
-                    : "btn btn-sm btn-primary btn-flat btn-danger pull-left inactiveLink"
-                 }
-             />
-        </>
-
-        // remaining codes for 6 pm review
-
-
-                );
+                    : "btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"}
+            />
+        );
     }
 }
 const ObservedPostJournalEntryButton = observer(PostJournalEntryButton);
@@ -276,7 +259,7 @@ class JournalEntryLines extends React.Component {
                                 <td><input type="text" className="form-control" id="txtNewAmount" /></td>                            
                                 <td><input type="text" className="form-control" id="txtNewMemo" /></td>                      
                                 <td>
-                                    <button type="button" className="btn btn-box-tool" onClick={this.addLineItem}>
+                                    <button type="button" className="btn btn-box-tool" onClick={this.addLineItem.bind(this)}>
                                         <i className="fa fa-fw fa-check"></i>
                                     </button>
                                 </td>

@@ -10,4 +10,17 @@ namespace Dto.Inventory
         public string Measurement { get; set; }
         public DateTime Date { get; set; }
     }
+
+       private void ComputeDebit(IList<Account> accounts, ref decimal mainBalance)
+        {
+            foreach (var account in accounts)
+            {
+                mainBalance += account.DebitBalance;
+
+                if (account.ChildAccounts.Count > 0)
+                {
+                    ComputeDebit(account.ChildAccounts, ref sum);
+                }
+            }
+        }
 }
