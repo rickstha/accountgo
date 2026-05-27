@@ -8,6 +8,9 @@ namespace Dto.Financial
 {
     public class MasterGeneralLedger : BaseDto
     {
+
+        //no need to work on this file anymore ----------- 
+
         public new int? Id { get; set; }
         public int AccountId { get; set; }
         public int CurrencyId { get; set; }

@@ -53,6 +53,7 @@ namespace Api.Controllers
             return new ObjectResult(accountTree);
         }
 
+        [HttpGet]
         [Route("Account")]
         public IActionResult Account(int id)
         {
@@ -149,10 +150,19 @@ namespace Api.Controllers
 
             // is this journal entry ready for posting?
             if (!journalEntryDto.Posted.GetValueOrDefault()
-                && journalEntryDto.JournalEntryLines.Count >= 2
-                && (journalEntryDto.debitAmount == journalEntryDto.creditAmount))
+                && journalEntryDto.JournalEntryLines.Count >= 2)
             {
-                journalEntryDto.ReadyForPosting = true;
+                var debitAmount = journalEntryDto.JournalEntryLines
+                    .Where(x => x.DrCr == 0)
+                    .Sum(x => x.Amount ?? 0);
+                var creditAmount = journalEntryDto.JournalEntryLines
+                    .Where(x => x.DrCr == 1)
+                    .Sum(x => x.Amount ?? 0);
+                
+                if (debitAmount == creditAmount)
+                {
+                    journalEntryDto.ReadyForPosting = true;
+                }
             }
 
             return new ObjectResult(journalEntryDto);
@@ -168,10 +178,11 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
+                    var errorList = new List<string>();
                     foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                        foreach (var err in val.Errors)
+                            errorList.Add(err.ErrorMessage);
+                    errors = errorList.ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -199,10 +210,11 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
+                    var errorList = new List<string>();
                     foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                        foreach (var err in val.Errors)
+                            errorList.Add(err.ErrorMessage);
+                    errors = errorList.ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -291,7 +303,6 @@ namespace Api.Controllers
         {
             var Dto = _financialService.MasterGeneralLedger(from, to, accountCode, transactionNo);
 
-            //goi
             var generalLedgerTree = BuildMasterGeneralLedger(Dto);
 
             return new ObjectResult(generalLedgerTree);

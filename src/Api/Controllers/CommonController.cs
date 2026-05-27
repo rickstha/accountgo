@@ -11,11 +11,11 @@ using Services.Financial;
 using Dto.Financial;
 using System.Linq;
 using System;
-using Core.Domain;
 
 namespace Api.Controllers
 {
     [Route("api/[controller]")]
+    [ApiController]
     public class CommonController : BaseController
     {
         private readonly ISalesService _salesService;
@@ -24,137 +24,248 @@ namespace Api.Controllers
         private readonly IPurchasingService _purchasingService;
         private readonly IFinancialService _financialService;
 
-        public CommonController(ISalesService salesService,
+        // just for future use
+        // private readonly IPurchaseMainServices _purchaseMainServices;
+        // private readonly ILoginServices _loginServices;
+        // private readonly ISignUpServices _signUpServices;
+        // private readonly ICustomerServices _customerServices;
+        // private readonly IPayTermServices _payTermsServices;
+
+        public CommonController(
+            ISalesService salesService,
             IAdministrationService administrationService,
             IInventoryService inventoryService,
             IPurchasingService purchasingService,
-            IFinancialService financialService)
+            IFinancialService financialService
+            // IPurchaseMainServices purchaseMainServices,
+            // ILoginServices loginServices,
+            // ISignUpServices signUpServices,
+            // ICustomerServices customerServices,
+            // IPayTermServices payTermServices
+            )
         {
             _salesService = salesService;
             _administrationService = administrationService;
             _inventoryService = inventoryService;
             _purchasingService = purchasingService;
             _financialService = financialService;
+
+            // _purchaseMainServices = purchaseMainServices;
+            // _loginServices = loginServices;
+            // _signUpServices = signUpServices;
+            // _customerServices = customerServices;
+            // _payTermsServices = payTermServices;
         }
 
+        // =========================================
+        // CUSTOMERS
+        // =========================================
+
         [HttpGet]
-        [Route("Customers")] // api/Common/Customers
+        [Route("customers")]
         public IActionResult Customers()
         {
             var customers = _salesService.GetCustomers();
-            
-            ICollection<Customer> customersDto = new HashSet<Customer>();
+
+            ICollection<Dto.Sales.Customer> customersDto =
+                new List<Dto.Sales.Customer>();
 
             foreach (var customer in customers)
             {
-                if(customer.Party != null)
-                    customersDto.Add(new Customer() { Id = customer.Id, Name = customer.Party.Name, PaymentTermId = customer.PaymentTermId });
+                if (customer.Party != null)
+                {
+                    customersDto.Add(new Dto.Sales.Customer()
+                    {
+                        Id = customer.Id,
+                        Name = customer.Party.Name,
+                        PaymentTermId = customer.PaymentTermId
+                    });
+                }
             }
 
-            return new ObjectResult(customersDto);
+            return Ok(customersDto);
         }
 
+        // =========================================
+        // PAYMENT TERMS
+        // =========================================
+
         [HttpGet]
-        [Route("PaymentTerms")] // api/Common/PaymentTerms
+        [Route("paymentterms")]
         public IActionResult PaymentTerms()
         {
-            var paymentterms = _administrationService.GetPaymentTerms();
-            return new ObjectResult(paymentterms);
+            var paymentTerms = _administrationService.GetPaymentTerms();
+
+            return Ok(paymentTerms);
         }
 
+        // =========================================
+        // ITEMS
+        // =========================================
+
         [HttpGet]
-        [Route("Items")] // api/Common/Items
+        [Route("items")]
         public IActionResult Items()
         {
-            var items = _inventoryService.GetAllItems().OrderBy(i => i.Description);
-            ICollection<Item> itemsDto = new HashSet<Item>();
+            var items = _inventoryService
+                .GetAllItems()
+                .OrderBy(i => i.Description);
+
+            ICollection<Dto.Inventory.Item> itemsDto =
+                new List<Dto.Inventory.Item>();
 
             foreach (var item in items)
-                itemsDto.Add(new Item() { Id = item.Id, Description = item.Description , Code = item.Code, Price = item.Price, SellMeasurementId = item.SellMeasurementId});
+            {
+                itemsDto.Add(new Dto.Inventory.Item()
+                {
+                    Id = item.Id,
+                    Description = item.Description,
+                    Code = item.Code,
+                    Price = item.Price,
+                    SellMeasurementId = item.SellMeasurementId
+                });
+            }
 
-            return new ObjectResult(itemsDto);
+            return Ok(itemsDto);
         }
 
+        // =========================================
+        // MEASUREMENTS
+        // =========================================
+
         [HttpGet]
-        [Route("Measurements")] // api/Common/Measurements
+        [Route("measurements")]
         public IActionResult Measurements()
         {
-            return new ObjectResult(_inventoryService.GetMeasurements().OrderBy(m => m.Description));
+            var measurements = _inventoryService
+                .GetMeasurements()
+                .OrderBy(m => m.Description);
+
+            return Ok(measurements);
         }
 
+        // =========================================
+        // VENDORS
+        // =========================================
+
         [HttpGet]
-        [Route("Vendors")] // api/Common/Vendors
+        [Route("vendors")]
         public IActionResult Vendors()
         {
             var vendors = _purchasingService.GetVendors();
-            ICollection<Vendor> vendorsDto = new HashSet<Vendor>();
+
+            ICollection<Dto.Purchasing.Vendor> vendorsDto =
+                new List<Dto.Purchasing.Vendor>();
 
             foreach (var vendor in vendors)
             {
-                if(vendor.Party != null)
-                    vendorsDto.Add(new Vendor() { Id = vendor.Id, Name = vendor.Party.Name, PaymentTermId = vendor.PaymentTermId });
+                if (vendor.Party != null)
+                {
+                    vendorsDto.Add(new Dto.Purchasing.Vendor()
+                    {
+                        Id = vendor.Id,
+                        Name = vendor.Party.Name,
+                        PaymentTermId = vendor.PaymentTermId
+                    });
+                }
             }
 
-            return new ObjectResult(vendorsDto);
-        }
-        
-        [HttpGet]
-        [Route("ItemCategories")] // api/Common/ItemCategories
-        public IActionResult ItemCategories()
-        {
-            var itemcategories = _inventoryService.GetItemCategories();
-            return Ok(itemcategories.AsEnumerable());
+            return Ok(vendorsDto);
         }
 
+        // =========================================
+        // ITEM CATEGORIES
+        // =========================================
+
         [HttpGet]
-        [Route("CashBanks")] // api/Common/CashBanks
+        [Route("itemcategories")]
+        public IActionResult ItemCategories()
+        {
+            var itemCategories = _inventoryService.GetItemCategories();
+
+            return Ok(itemCategories.AsEnumerable());
+        }
+
+        // =========================================
+        // CASH & BANKS
+        // =========================================
+
+        [HttpGet]
+        [Route("cashbanks")]
         public IActionResult CashBanks()
         {
             var banks = _financialService.GetCashAndBanks();
-            ICollection<Bank> cashbanksDto = new HashSet<Bank>();
+
+            ICollection<Dto.Financial.Bank> cashBanksDto =
+                new List<Dto.Financial.Bank>();
 
             foreach (var bank in banks)
-                cashbanksDto.Add(new Bank() { Id = bank.Id, Name = bank.Name });
+            {
+                cashBanksDto.Add(new Dto.Financial.Bank()
+                {
+                    Id = bank.Id,
+                    Name = bank.Name
+                });
+            }
 
-            return Ok(cashbanksDto);
+            return Ok(cashBanksDto);
         }
 
+        // =========================================
+        // POSTING ACCOUNTS
+        // =========================================
+
         [HttpGet]
-        [Route("PostingAccounts")] // api/Common/PostingAccounts
+        [Route("postingaccounts")]
         public IActionResult PostingAccounts()
         {
-            var accounts = _financialService.GetAccounts()
-                .Where(a => a.ChildAccounts.Count == 0)
+            var accounts = _financialService
+                .GetAccounts()
+                .Where(a => a.ChildAccounts != null && a.ChildAccounts.Count == 0)
                 .OrderBy(a => a.AccountName);
 
-            ICollection<Account> accountsDto = new HashSet<Account>();
+            ICollection<Dto.Financial.Account> accountsDto =
+                new List<Dto.Financial.Account>();
 
             foreach (var account in accounts)
-                accountsDto.Add(new Account() { Id = account.Id, AccountName = account.AccountName });
+            {
+                accountsDto.Add(new Dto.Financial.Account()
+                {
+                    Id = account.Id,
+                    AccountName = account.AccountName
+                });
+            }
 
             return Ok(accountsDto);
         }
 
+        // =========================================
+        // SALES QUOTATION STATUS
+        // =========================================
+
         [HttpGet]
-        [Route("SalesQuotationStatus")] // api/Common/SalesQuotationStatus
+        [Route("salesquotationstatus")]
         public IActionResult SalesQuotationStatus()
         {
-
-            List<int> quoteStatuses = new List<int>(new int[] { 0, 1, 3 });
+            List<int> quoteStatuses = new List<int> { 0, 1, 3 };
 
             var salesQuotationsDto = new List<Dto.Common.Status>();
-            foreach (var item in Enum.GetValues(typeof(SalesQuoteStatus)))
+
+            foreach (var item in Enum.GetValues(typeof(Core.Domain.SalesQuoteStatus)))
             {
-                if (quoteStatuses.Contains((int)item) )
+                if (quoteStatuses.Contains((int)item))
                 {
-                    salesQuotationsDto.Add(new Dto.Common.Status { Id = (int)item, Description = Enum.GetName(typeof(SalesQuoteStatus), item) });
+                    salesQuotationsDto.Add(new Dto.Common.Status
+                    {
+                        Id = (int)item,
+                        Description = Enum.GetName(
+                            typeof(Core.Domain.SalesQuoteStatus),
+                            item)
+                    });
                 }
-
             }
-            return Json(salesQuotationsDto);
- 
+
+            return Ok(salesQuotationsDto);
         }
-
-
     }
 }

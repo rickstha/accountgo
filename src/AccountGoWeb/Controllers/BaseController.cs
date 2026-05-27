@@ -1,74 +1,132 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace AccountGoWeb.Controllers
 {
     public class BaseController : Controller
     {
         protected IConfiguration? _baseConfig;
+        private static readonly HttpClient _httpClient = new HttpClient();
 
         protected async System.Threading.Tasks.Task<T> GetAsync<T>(string uri)
         {
             string responseJson = string.Empty;
-            using (var client = new HttpClient())
+            try
             {
+                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                    return default(T)!;
+                
                 var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + uri);
+                var fullUri = new Uri(new Uri(baseUri!), uri);
+                var response = await _httpClient.GetAsync(fullUri);
                 if (response.IsSuccessStatusCode)
                 {
                     responseJson = await response.Content.ReadAsStringAsync();
                 }
             }
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(responseJson)!;
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"HTTP request error: {ex.Message}");
+                return default(T)!;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetAsync: {ex.Message}");
+                return default(T)!;
+            }
+            
+            if (string.IsNullOrEmpty(responseJson))
+                return default(T)!;
+            
+            try
+            {
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(responseJson)!;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"JSON deserialization error: {ex.Message}");
+                return default(T)!;
+            }
         }
 
-        protected HttpResponseMessage Get(string uri)
+        protected async System.Threading.Tasks.Task<HttpResponseMessage> Get(string uri)
         {
-            string responseJson = string.Empty;
-            using (var client = new HttpClient())
+            try
             {
+                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                    throw new InvalidOperationException("ApiUrl configuration is not set");
+                
                 var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = client.GetAsync(baseUri + uri);
-                return response.Result;
+                var fullUri = new Uri(new Uri(baseUri!), uri);
+                var response = await _httpClient.GetAsync(fullUri);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in Get: {ex.Message}");
+                throw;
             }
         }
 
         protected async System.Threading.Tasks.Task<string> PostAsync(string uri, StringContent data)
         {
             string responseJson = string.Empty;
-            using (var client = new HttpClient())
+            try
             {
+                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                    return string.Empty;
+                
                 var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Add("UserName", GetCurrentUserName());
-
-                var response = await client.PostAsync(baseUri + uri, data);
+                var fullUri = new Uri(new Uri(baseUri!), uri);
+                var request = new HttpRequestMessage(HttpMethod.Post, fullUri)
+                {
+                    Content = data
+                };
+                request.Headers.Add("UserName", GetCurrentUserName());
+                
+                var response = await _httpClient.SendAsync(request);
                 if (response.IsSuccessStatusCode)
                 {
                     responseJson = await response.Content.ReadAsStringAsync();
                 }
             }
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"HTTP request error: {ex.Message}");
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in PostAsync: {ex.Message}");
+                return string.Empty;
+            }
 
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<string>(responseJson)!;
+            return responseJson ?? string.Empty;
         }
 
-        protected HttpResponseMessage Post(string uri, StringContent data)
+        protected async System.Threading.Tasks.Task<HttpResponseMessage> Post(string uri, StringContent data)
         {
-            string responseJson = string.Empty;
-            using (var client = new HttpClient())
+            try
             {
+                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                    throw new InvalidOperationException("ApiUrl configuration is not set");
+                
                 var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-                client.DefaultRequestHeaders.Add("UserName", GetCurrentUserName());
+                var fullUri = new Uri(new Uri(baseUri!), uri);
+                var request = new HttpRequestMessage(HttpMethod.Post, fullUri)
+                {
+                    Content = data
+                };
+                request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                request.Headers.Add("UserName", GetCurrentUserName());
 
-                var response = client.PostAsync(baseUri + uri, data);
-                return response.Result;
+                var response = await _httpClient.SendAsync(request);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in Post: {ex.Message}");
+                throw;
             }
         }
 
@@ -78,18 +136,23 @@ namespace AccountGoWeb.Controllers
             {
                 System.Collections.Generic.IList<string> permissions = new System.Collections.Generic.List<string>();
 
-                var claimsEnumerator = HttpContext.User.Claims.GetEnumerator();
-                while(claimsEnumerator.MoveNext())
+                foreach (var claim in HttpContext.User.Claims)
                 {
-                    var current = claimsEnumerator.Current;
-                    if (current.Type == System.Security.Claims.ClaimTypes.UserData)
+                    if (claim.Type == System.Security.Claims.ClaimTypes.UserData)
                     {
-                        Newtonsoft.Json.Linq.JObject userData = Newtonsoft.Json.Linq.JObject.Parse(current.Value);
-                        foreach(var r in userData["Roles"]!)
+                        Newtonsoft.Json.Linq.JObject userData = Newtonsoft.Json.Linq.JObject.Parse(claim.Value);
+                        if (userData["Roles"] != null)
                         {
-                            foreach(var p in r["Permissions"]!)
+                            foreach (var r in userData["Roles"])
                             {
-                                permissions.Add(p["Name"]!.ToString());
+                                if (r["Permissions"] != null)
+                                {
+                                    foreach (var p in r["Permissions"])
+                                    {
+                                        if (p["Name"] != null)
+                                            permissions.Add(p["Name"]!.ToString());
+                                    }
+                                }
                             }
                         }
                     }
@@ -105,15 +168,8 @@ namespace AccountGoWeb.Controllers
         {
             if (HttpContext.User.Identity!.IsAuthenticated)
             {
-                var claimsEnumerator = HttpContext.User.Claims.GetEnumerator();
-                while (claimsEnumerator.MoveNext())
-                {
-                    var current = claimsEnumerator.Current;
-                    if (current.Type == System.Security.Claims.ClaimTypes.Email)
-                    {
-                        return current.Value;
-                    }
-                }
+                var emailClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email);
+                return emailClaim?.Value ?? string.Empty;
             }
             return string.Empty;
         }

@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import {observer} from "mobx-react";
 // import from "accounting" npm package
-import * as accounting from "accounting";
+import accounting from "accounting";
 
 import SelectCustomer from "../Shared/Components/SelectCustomer";
 import SelectPaymentTerm from "../Shared/Components/SelectPaymentTerm";
@@ -10,18 +10,17 @@ import SelectLineMeasurement from "../Shared/Components/SelectLineMeasurement";
 import SalesInvoiceLine from "../Shared/Stores/Sales/SalesInvoiceLine";
 import SalesInvoiceStore from "../Shared/Stores/Sales/SalesInvoiceStore";
 
-const orderId = window.location.search.split("?orderId=")[1];
-const invoiceId = window.location.search.split("?invoiceId=")[1];
-const store = new SalesInvoiceStore(Number(orderId), Number(invoiceId));
+const urlParams = new URLSearchParams(window.location.search);
+const orderId = urlParams.get('orderId');
+const invoiceId = urlParams.get('invoiceId');
+const store = new SalesInvoiceStore(Number(orderId || '0'), Number(invoiceId || '0'));
 
 class ValidationErrors extends React.Component {
     render() {
         if (store.validationErrors !== undefined && store.validationErrors.length > 0) {
-            const errors: string[] = [];
-            store.validationErrors.map(function (item: string, index: number) {
-                const errors: React.ReactNode[] = [];
-                errors.push(<li key={index}>{item}</li>);
-            });
+            const errors = store.validationErrors.map((item: string, index: number) => (
+                <li key={index}>{item}</li>
+            ));
             return (
                 <div>
                     <ul>
@@ -39,10 +38,12 @@ const ObservedValidationErrors = observer(ValidationErrors);
 class EditButton extends React.Component {
     onClickEditButton() {
         // Remove " disabledControl" from current className
-        const nodes = document.getElementById("divSalesInvoiceForm")!.getElementsByTagName('*');
-        for (let i = 0; i < nodes.length; i++) {
-            const subStringLength = nodes[i].className.length - " disabledControl".length;
-            nodes[i].className = nodes[i].className.substring(0, subStringLength);
+        const nodes = document.getElementById("divSalesInvoiceForm")?.getElementsByTagName('*');
+        if (nodes) {
+            for (let i = 0; i < nodes.length; i++) {
+                const subStringLength = nodes[i].className.length - " disabledControl".length;
+                nodes[i].className = nodes[i].className.substring(0, subStringLength);
+            }
         }
         store.changedEditMode(true)
     }
@@ -63,9 +64,6 @@ const ObservedEditButton = observer(EditButton);
 class SaveInvoiceButton extends React.Component {
     saveNewSalesInvoice() {
         store.saveNewSalesInvoice();
-    }
-    onChangeReferenceNo(e: React.ChangeEvent<HTMLInputElement>) {
-        store.changedReferenceNo(e.target.value);
     }
     render() {
         return (
@@ -169,7 +167,7 @@ class SalesInvoiceHeader extends React.Component {
                         </div>
                     </div>
 </div>
-                    </div>
+            </div>
         );
     }
 }
@@ -232,10 +230,10 @@ class SalesInvoiceLines extends React.Component {
                     document.getElementById("txtNewCode")!.style.borderColor = "";
                 }
                 else {
-                    store.updateLineItem(e, "itemId", lineitem.id.toString());
-                    store.updateLineItem(e, "measurementId", lineitem.measurementId.toString());
-                    store.updateLineItem(e, "amount", lineitem.amount.toString());
-                    store.updateLineItem(e, "quantity", "1");
+                    store.updateLineItem(e.toString(), "itemId", lineitem.id.toString());
+                    store.updateLineItem(e.toString(), "measurementId", lineitem.measurementId.toString());
+                    store.updateLineItem(e.toString(), "amount", lineitem.amount.toString());
+                    store.updateLineItem(e.toString(), "quantity", 1);
                     i.target.style.borderColor = "";
                 }
             }
@@ -267,9 +265,9 @@ class SalesInvoiceLines extends React.Component {
                     <td><SelectLineItem store={store} row={i} selected={store.salesInvoice.salesInvoiceLines[i].itemId} /></td>
                     <td><input className="form-control" type="text" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].code} onBlur={this.onFocusOutItem.bind(this, i, false) } onChange={this.onChangeCode.bind(this) } /></td>
                     <td><SelectLineMeasurement row={i} store={store} selected={store.salesInvoice.salesInvoiceLines[i].measurementId} /></td>
-                    <td><input type="text" className="form-control" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].quantity} onChange={this.onChangeQuantity.bind(this)} /></td>
-                    <td><input type="text" className="form-control" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].amount} onChange={this.onChangeAmount.bind(this) } /></td>
-                    <td><input type="text" className="form-control" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].discount} onChange={this.onChangeDiscount.bind(this) } /></td>
+                    <td><input type="text" className="form-control" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].quantity.toString()} onChange={this.onChangeQuantity.bind(this)} /></td>
+                    <td><input type="text" className="form-control" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].amount.toString()} onChange={this.onChangeAmount.bind(this) } /></td>
+                    <td><input type="text" className="form-control" name={i.toString()} value={store.salesInvoice.salesInvoiceLines[i].discount.toString()} onChange={this.onChangeDiscount.bind(this) } /></td>
                     <td>{store.getLineTotal(i) }</td>
                     <td>
                         <button type="button" className="btn btn-box-tool" onClick={this.onClickRemoveLineItem.bind(this, i) }>
@@ -320,7 +318,7 @@ class SalesInvoiceLines extends React.Component {
                         </tbody>
                     </table>
                 </div>
-                </div>
+            </div>
         );
     }
 }

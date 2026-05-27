@@ -10,9 +10,10 @@ import SelectLineMeasurement from "../Shared/Components/SelectLineMeasurement";
 import PurchaseOrderStore from "../Shared/Stores/Purchasing/PurchaseOrderStore";
 import PurchaseOrderLine from "../Shared/Stores/Purchasing/PurchaseOrderLine";
 
-const purchId = window.location.search.split("?purchId=")[1];
+const urlParams = new URLSearchParams(window.location.search);
+const purchId = urlParams.get('purchId');
 
-const store = new PurchaseOrderStore(Number(purchId));
+const store = new PurchaseOrderStore(Number(purchId || '0'));
 
 // let baseUrl: string = location.protocol
 //     + "//" + location.hostname
@@ -22,11 +23,9 @@ const store = new PurchaseOrderStore(Number(purchId));
 class ValidationErrors extends React.Component {
     render() {
         if (store.validationErrors !== undefined && store.validationErrors.length > 0) {
-            const errors: string[] = [];
-            store.validationErrors.map(function (item, index) {
-                const errors: React.ReactNode[] = [];
-                errors.push(<li key={index}>{item}</li>);                
-            });
+            const errors = store.validationErrors.map((item: any, index: number) => (
+                <li key={index}>{item}</li>
+            ));
             return (
                 <div>
                     <ul>
@@ -72,7 +71,7 @@ class PurchaseOrderHeader extends React.Component {
                             <div className="col-sm-2">Date</div>
                             <div className="col-sm-10">
                                 <input type="date" className="form-control pull-right" onChange={this.onChangeOrderDate.bind(this) } step={7}
-                                    value={store.purchaseOrder.orderDate !== undefined ? store.purchaseOrder.orderDate.toString().substring(0, 10) : new Date(Date.now()).toISOString().substring(0, 10) } /></div>
+                                    value={store.purchaseOrder.orderDate !== undefined ? store.purchaseOrder.orderDate.toISOString().substring(0, 10) : new Date(Date.now()).toISOString().substring(0, 10) } /></div>
                         </div>                        
                         <div className="row">
                             <div className="col-sm-2">Reference no.</div>
@@ -147,10 +146,10 @@ class PurchaseOrderLines extends React.Component {
                     document.getElementById("txtNewCode")!.style.borderColor = "";
                 }
                 else {
-                    store.updateLineItem(e, "itemId", lineItem.id);
-                    store.updateLineItem(e, "measurementId", lineItem.measurementId);
-                    store.updateLineItem(e, "amount", lineItem.amount);
-                    store.updateLineItem(e, "quantity", 1);
+                    store.updateLineItem(e.toString(), "itemId", lineItem.id);
+                    store.updateLineItem(e.toString(), "measurementId", lineItem.measurementId);
+                    store.updateLineItem(e.toString(), "amount", lineItem.amount);
+                    store.updateLineItem(e.toString(), "quantity", 1);
                     i.target.style.borderColor = "";
                 }
             }
@@ -192,9 +191,9 @@ class PurchaseOrderLines extends React.Component {
                     <td><SelectLineItem store={store} row={i} selected={store.purchaseOrder.purchaseOrderLines[i].itemId} /></td>
                     <td><input className="form-control" type="text" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].code} onBlur={this.onFocusOutItem.bind(this, i, false) } onChange={this.onChangeCode.bind(this) } /></td>
                     <td><SelectLineMeasurement row={i} store={store} selected={store.purchaseOrder.purchaseOrderLines[i].measurementId} /></td>
-                    <td><input type="text" className="form-control" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].quantity} onChange={this.onChangeQuantity.bind(this)} /></td>
-                    <td><input type="text" className="form-control" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].amount} onChange={this.onChangeAmount.bind(this) } /></td>
-                    <td><input type="text" className="form-control" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].discount} onChange={this.onChangeDiscount.bind(this) } /></td>
+                    <td><input type="text" className="form-control" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].quantity.toString()} onChange={this.onChangeQuantity.bind(this)} /></td>
+                    <td><input type="text" className="form-control" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].amount.toString()} onChange={this.onChangeAmount.bind(this) } /></td>
+                    <td><input type="text" className="form-control" name={i.toString()} value={store.purchaseOrder.purchaseOrderLines[i].discount.toString()} onChange={this.onChangeDiscount.bind(this) } /></td>
                     <td>{store.getLineTotal(i) }</td>
                     <td>
                         <button type="button" className="btn btn-box-tool" onClick={this.onClickRemoveLineItem.bind(this, i) }>
@@ -275,11 +274,12 @@ class EditButton extends React.Component {
     onClickEditButton() {
         // Remove " disabledControl" from current className
         const nodes = document.getElementById("divPurchaseOrderForm")?.getElementsByTagName('*');
-        for (let i = 0; i < nodes!.length; i++) {
-            const subStringLength = nodes![i].className.length - " disabledControl".length;
-            nodes![i].className = nodes![i].className.substring(0, subStringLength);
+        if (nodes) {
+            for (let i = 0; i < nodes.length; i++) {
+                const subStringLength = nodes[i].className.length - " disabledControl".length;
+                nodes[i].className = nodes[i].className.substring(0, subStringLength);
+            }
         }
-
         store.changedEditMode(true);
     }
     render() {

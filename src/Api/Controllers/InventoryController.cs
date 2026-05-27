@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Api.Controllers
 {
+    [ApiController]
     [Route("api/[controller]")]
     public class InventoryController : BaseController
     {
@@ -15,7 +16,8 @@ namespace Api.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly ILogger<InventoryController> _logger;
 
-        public InventoryController(IAdministrationService adminService,
+        public InventoryController(
+            IAdministrationService adminService,
             IInventoryService inventoryService,
             ILogger<InventoryController> logger)
         {
@@ -24,130 +26,232 @@ namespace Api.Controllers
             _logger = logger;
         }
 
+        // =====================================================
+        // SAVE ITEM
+        // =====================================================
+
         [HttpPost]
-        [Route("SaveItem")]
-        public IActionResult SaveItem([FromBody]Item itemDto)
+        [Route("saveitem")]
+        public IActionResult SaveItem([FromBody] Item itemDto)
         {
-            bool isNew = itemDto.Id == 0;
-            Core.Domain.Items.Item item = null;
-
-            if (isNew)
+            try
             {
-                item = new Core.Domain.Items.Item();
-            }
-            else
-            {
-                item = _inventoryService.GetItemById(itemDto.Id);
-            }
+                if (itemDto == null)
+                {
+                    return BadRequest("Item data is required.");
+                }
 
-            _logger.LogInformation("Item is New: " + isNew);
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
 
-            item.No = itemDto.No;
-            item.Code = itemDto.Code;
-            item.Description = itemDto.Description;
-            item.SellDescription = itemDto.SellDescription;
-            item.PurchaseDescription = itemDto.PurchaseDescription;
-            item.Cost = itemDto.Cost;
-            item.Price = itemDto.Price;
-            item.SmallestMeasurementId = itemDto.SmallestMeasurementId;
-            item.SellMeasurementId = itemDto.SellMeasurementId;
-            item.PurchaseMeasurementId = itemDto.PurchaseMeasurementId;
-            item.ItemCategoryId = itemDto.ItemCategoryId;
-            item.ItemTaxGroupId = itemDto.ItemTaxGroupId;
-            item.SalesAccountId = itemDto.SalesAccountId;
-            item.InventoryAccountId = itemDto.InventoryAccountId;
-            item.InventoryAdjustmentAccountId = itemDto.InventoryAdjustmentAccountId;
-            item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
-            
-            if (isNew)
-            {
-                _inventoryService.AddItem(item);
-            }
-            else
-            {
-                _inventoryService.UpdateItem(item);
-            }
+                    return BadRequest(errors);
+                }
 
-            return Ok();
+                bool isNew = itemDto.Id == 0;
+
+                Core.Domain.Items.Item item;
+
+                if (isNew)
+                {
+                    item = new Core.Domain.Items.Item();
+                }
+                else
+                {
+                    item = _inventoryService.GetItemById(itemDto.Id);
+
+                    if (item == null)
+                    {
+                        return NotFound($"Item with Id {itemDto.Id} not found.");
+                    }
+                }
+
+                _logger.LogInformation("Saving Item. IsNew: {IsNew}", isNew);
+
+                item.No = itemDto.No;
+                item.Code = itemDto.Code;
+                item.Description = itemDto.Description;
+                item.SellDescription = itemDto.SellDescription;
+                item.PurchaseDescription = itemDto.PurchaseDescription;
+                item.Cost = itemDto.Cost;
+                item.Price = itemDto.Price;
+                item.SmallestMeasurementId = itemDto.SmallestMeasurementId;
+                item.SellMeasurementId = itemDto.SellMeasurementId;
+                item.PurchaseMeasurementId = itemDto.PurchaseMeasurementId;
+                item.ItemCategoryId = itemDto.ItemCategoryId;
+                item.ItemTaxGroupId = itemDto.ItemTaxGroupId;
+                item.SalesAccountId = itemDto.SalesAccountId;
+                item.InventoryAccountId = itemDto.InventoryAccountId;
+                item.InventoryAdjustmentAccountId = itemDto.InventoryAdjustmentAccountId;
+                item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
+                item.PreferredVendorId = itemDto.PreferredVendorId;
+
+                if (isNew)
+                {
+                    _inventoryService.AddItem(item);
+                }
+                else
+                {
+                    _inventoryService.UpdateItem(item);
+                }
+
+                return Ok(new
+                {
+                    message = "Item saved successfully."
+                });
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError(ex, "Error while saving item");
+
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
+        // =====================================================
+        // GET ALL ITEMS
+        // =====================================================
+
         [HttpGet]
-        [Route("items")] // api/Inventory/items
+        [Route("items")]
         public IActionResult Items()
         {
-            var items = _inventoryService.GetAllItems();
-            
-            ICollection<Item> itemsDto = new HashSet<Item>();
-
-            foreach (var item in items)
+            try
             {
-                itemsDto.Add(new Item()
+                var items = _inventoryService.GetAllItems();
+
+                ICollection<Item> itemsDto = new List<Item>();
+
+                foreach (var item in items)
+                {
+                    itemsDto.Add(new Item
+                    {
+                        Id = item.Id,
+                        Code = item.Code,
+                        Description = item.Description,
+                        ItemTaxGroupName = item.ItemTaxGroup?.Name ?? "",
+                        Measurement = item.PurchaseMeasurement?.Description ?? "",
+                        Cost = item.Cost,
+                        Price = item.Price,
+                        QuantityOnHand = item.ComputeQuantityOnHand()
+                    });
+                }
+
+                return Ok(itemsDto);
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting items");
+
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
+        }
+
+        // =====================================================
+        // GET SINGLE ITEM
+        // =====================================================
+
+        [HttpGet]
+        [Route("item/{id}")]
+        public IActionResult Item(int id)
+        {
+            try
+            {
+                var item = _inventoryService.GetItemById(id);
+
+                if (item == null)
+                {
+                    return NotFound($"Item with Id {id} not found.");
+                }
+
+                var itemDto = new Item
                 {
                     Id = item.Id,
                     Code = item.Code,
                     Description = item.Description,
-                    ItemTaxGroupName = item.ItemTaxGroup == null ? "" : item.ItemTaxGroup.Name,
-                    Measurement = item.PurchaseMeasurement == null ? "" : item.PurchaseMeasurement.Description,
                     Cost = item.Cost,
                     Price = item.Price,
-                    QuantityOnHand = item.ComputeQuantityOnHand()
+                    SellDescription = item.SellDescription,
+                    PurchaseDescription = item.PurchaseDescription,
+                    QuantityOnHand = item.ComputeQuantityOnHand(),
+                    ItemCategoryId = item.ItemCategoryId,
+                    SmallestMeasurementId = item.SmallestMeasurementId,
+                    SellMeasurementId = item.SellMeasurementId,
+                    PurchaseMeasurementId = item.PurchaseMeasurementId,
+                    PreferredVendorId = item.PreferredVendorId,
+                    ItemTaxGroupId = item.ItemTaxGroupId,
+                    SalesAccountId = item.SalesAccountId,
+                    InventoryAccountId = item.InventoryAccountId,
+                    CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
+                    InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
+                };
+
+                return Ok(itemDto);
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting item");
+
+                return StatusCode(500, new
+                {
+                    message = ex.Message
                 });
             }
-
-            return new ObjectResult(itemsDto.AsEnumerable());
         }
 
-        [HttpGet]
-        [Route("Item")]
-        public IActionResult Item(int id)
-        {
-            var item = _inventoryService.GetItemById(id);
-            var itemDto = new Item()
-            {
-                Id = item.Id,
-                Code = item.Code,
-                Description = item.Description,
-                Cost = item.Cost,
-                Price = item.Price,
-                SellDescription = item.SellDescription,
-                PurchaseDescription = item.PurchaseDescription,
-                QuantityOnHand = item.ComputeQuantityOnHand(),
-                ItemCategoryId = item.ItemCategoryId,
-                SmallestMeasurementId = item.SmallestMeasurementId,
-                SellMeasurementId = item.SellMeasurementId,
-                PurchaseMeasurementId = item.PurchaseMeasurementId,
-                PreferredVendorId = item.PreferredVendorId,
-                ItemTaxGroupId = item.ItemTaxGroupId,
-                SalesAccountId = item.SalesAccountId,
-                InventoryAccountId = item.InventoryAccountId,
-                CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
-                InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
-            };
-
-            return new ObjectResult(itemDto);
-        }
+        // =====================================================
+        // INVENTORY CONTROL JOURNAL
+        // =====================================================
 
         [HttpGet]
-        [Route("ICJ")] // api/Inventory/ICJ
+        [Route("icj")]
         public IActionResult ICJ()
         {
-            var invControlJournals = _inventoryService.GetInventoryControlJournals();
-            var icjDto = new List<InventoryControlJournal>();
-            foreach (var icj in invControlJournals)
+            try
             {
-                icjDto.Add(new InventoryControlJournal()
+                var invControlJournals =
+                    _inventoryService.GetInventoryControlJournals();
+
+                var icjDto = new List<InventoryControlJournal>();
+
+                foreach (var icj in invControlJournals)
                 {
-                    Id = icj.Id,
-                    In = icj.INQty,
-                    Out = icj.OUTQty,
-                    Item = icj.Item.Description,
-                    Measurement = icj.Measurement.Code,
-                    Date = icj.Date
+                    icjDto.Add(new InventoryControlJournal
+                    {
+                        Id = icj.Id,
+                        In = icj.INQty,
+                        Out = icj.OUTQty,
+                        Item = icj.Item?.Description ?? "",
+                        Measurement = icj.Measurement?.Code ?? "",
+                        Date = icj.Date
+                    });
+                }
+
+                _logger.LogInformation(
+                    "ICJ Count: {Count}",
+                    icjDto.Count
+                );
+
+                return Ok(icjDto);
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting ICJ");
+
+                return StatusCode(500, new
+                {
+                    message = ex.Message
                 });
             }
-
-            _logger.LogInformation("ICJ Count: " + icjDto.Count);
-            return new ObjectResult(icjDto.AsEnumerable());
-        }    
+        }
     }
 }

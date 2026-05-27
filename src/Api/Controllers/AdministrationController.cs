@@ -9,14 +9,12 @@ using Services.Sales;
 using Services.Security;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 
 namespace Api.Controllers
 {
     [Route("api/[controller]")]
+    [ApiController]
     public class AdministrationController : BaseController
     {
         private readonly IAdministrationService _adminService;
@@ -26,7 +24,8 @@ namespace Api.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly ISecurityService _securityService;
 
-        public AdministrationController(IAdministrationService adminService,
+        public AdministrationController(
+            IAdministrationService adminService,
             IFinancialService financialService,
             ISalesService salesService,
             IPurchasingService purchasingService,
@@ -41,43 +40,118 @@ namespace Api.Controllers
             _securityService = securityService;
         }
 
-        [HttpGet]
-        [Route("Setup")]
+        // =========================================
+        // SETUP
+        // =========================================
+
+        [HttpGet("setup")]
         public IActionResult Setup()
         {
-            Api.Data.Initializer initializer = new Data.Initializer(_adminService, _financialService, _salesService, _purchasingService, _inventoryService, _securityService);
-            bool success = initializer.Setup();
-            if (success)
-                return Ok("{ 'message': 'Initialization completed!' }");
-            else
-                return BadRequest("{ 'message': 'Initialization not successful! Please check the log.' }");
+            try
+            {
+                var initializer = new Api.Data.Initializer(
+                    _adminService,
+                    _financialService,
+                    _salesService,
+                    _purchasingService,
+                    _inventoryService,
+                    _securityService);
+
+                bool success = initializer.Setup();
+
+                if (success)
+                {
+                    return Ok(new
+                    {
+                        message = "Initialization completed successfully."
+                    });
+                }
+
+                return BadRequest(new
+                {
+                    message = "Initialization failed."
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
-        [HttpGet]
-        [Route("clear")]
+        // =========================================
+        // CLEAR DATABASE
+        // =========================================
+
+        [HttpGet("clear")]
         public IActionResult Clear()
         {
-            Api.Data.Initializer initializer = new Data.Initializer(_adminService, _financialService, _salesService, _purchasingService, _inventoryService, _securityService);
-            bool success = initializer.Clear();
-            if (success)
-                return Ok("{ 'message': 'Database is cleared!' }");
-            else
-                return BadRequest("{ 'message': 'Clearing database not successful! Please check the log.' }");
+            try
+            {
+                var initializer = new Api.Data.Initializer(
+                    _adminService,
+                    _financialService,
+                    _salesService,
+                    _purchasingService,
+                    _inventoryService,
+                    _securityService);
+
+                bool success = initializer.Clear();
+
+                if (success)
+                {
+                    return Ok(new
+                    {
+                        message = "Database cleared successfully."
+                    });
+                }
+
+                return BadRequest(new
+                {
+                    message = "Database clearing failed."
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
-        [HttpGet]
-        [Route("company")]
-        public IActionResult Company(string companyCode)
+        // =========================================
+        // COMPANY
+        // =========================================
+
+        [HttpGet("company")]
+        public IActionResult Company(string? companyCode)
         {
-            return new ObjectResult(_adminService.GetDefaultCompany());
+            var company = _adminService.GetDefaultCompany();
+
+            if (company == null)
+            {
+                return NotFound(new
+                {
+                    message = "Company not found."
+                });
+            }
+
+            return Ok(company);
         }
 
-        [HttpGet]
-        [Route("auditlogs")] // api/Administration/AuditLogs
+        // =========================================
+        // AUDIT LOGS
+        // =========================================
+
+        [HttpGet("auditlogs")]
         public IActionResult AuditLogs()
         {
             var auditLogs = _adminService.AuditLogs();
-            var auditLogsDto = auditLogs.Select(log => new AuditLog()
+
+            var auditLogsDto = auditLogs.Select(log => new AuditLog
             {
                 Id = log.Id,
                 UserName = log.UserName,
@@ -90,14 +164,18 @@ namespace Api.Controllers
                 NewValue = log.NewValue
             }).ToList();
 
-            return new ObjectResult(auditLogsDto);
+            return Ok(auditLogsDto);
         }
 
-        [HttpGet]
-        [Route("users")] // api/Administration/Users
+        // =========================================
+        // USERS
+        // =========================================
+
+        [HttpGet("users")]
         public IActionResult Users()
         {
             var users = _securityService.GetAllUser();
+
             var usersDto = new List<User>();
 
             foreach (var user in users)
@@ -108,32 +186,41 @@ namespace Api.Controllers
                     FirstName = user.Firstname,
                     LastName = user.Lastname,
                     Email = user.EmailAddress,
-                    UserName = user.UserName
+                    UserName = user.UserName,
+                    Roles = new List<Role>()
                 };
 
-                foreach (var role in user.Roles)
+                if (user.Roles != null)
                 {
-                    var roleDto = new Role
+                    foreach (var role in user.Roles)
                     {
-                        Id = role.Id,
-                        Name = role.SecurityRole.Name,
-                        DisplayName = role.SecurityRole.DisplayName
-                    };
+                        var roleDto = new Role
+                        {
+                            Id = role.Id,
+                            Name = role.SecurityRole?.Name,
+                            DisplayName = role.SecurityRole?.DisplayName,
+                            Permissions = new List<Permission>()
+                        };
 
-                    userDto.Roles.Add(roleDto);
+                        userDto.Roles.Add(roleDto);
+                    }
                 }
 
                 usersDto.Add(userDto);
             }
 
-            return new ObjectResult(usersDto);
+            return Ok(usersDto);
         }
 
-        [HttpGet]
-        [Route("roles")] // api/Administration/Roles
+        // =========================================
+        // ROLES
+        // =========================================
+
+        [HttpGet("roles")]
         public IActionResult Roles()
         {
             var roles = _securityService.GetAllSecurityRole();
+
             var rolesDto = new List<Role>();
 
             foreach (var role in roles)
@@ -142,33 +229,82 @@ namespace Api.Controllers
                 {
                     Id = role.Id,
                     Name = role.Name,
-                    DisplayName = role.DisplayName
+                    DisplayName = role.DisplayName,
+                    Permissions = new List<Permission>()
                 };
 
-                foreach (var permission in role.Permissions)
+                if (role.Permissions != null)
                 {
-                    var permissionDto = new Permission
+                    foreach (var permission in role.Permissions)
                     {
-                        Id = permission.Id,
-                        Name = permission.SecurityPermission.Name,
-                        DisplayName = permission.SecurityPermission.DisplayName
-                    };
+                        var permissionDto = new Permission
+                        {
+                            Id = permission.Id,
+                            Name = permission.SecurityPermission?.Name,
+                            DisplayName = permission.SecurityPermission?.DisplayName
+                        };
 
-                    roleDto.Permissions.Add(permissionDto);
+                        roleDto.Permissions.Add(permissionDto);
+                    }
                 }
 
                 rolesDto.Add(roleDto);
             }
 
-            return new ObjectResult(rolesDto);
+            return Ok(rolesDto);
         }
 
-        [HttpGet]
-        [Route("groups")]
-        // TODO: generates exception
+        // =========================================
+        // MAIN GROUPS
+        // =========================================
+
+        [HttpGet("maingroups")]
+        public IActionResult MainGroups()
+        {
+            var mainGroups = _securityService.GetAllSecurityMainGroup();
+
+            var groupsDto = new List<Group>();
+
+            foreach (var mainGroup in mainGroups)
+            {
+                var groupDto = new Group
+                {
+                    Id = mainGroup.Id,
+                    Name = mainGroup.Name,
+                    DisplayName = mainGroup.DisplayName,
+                    Permissions = new List<Permission>()
+                };
+
+                if (mainGroup.Permissions != null)
+                {
+                    foreach (var permission in mainGroup.Permissions)
+                    {
+                        var permissionDto = new Permission
+                        {
+                            Id = permission.Id,
+                            Name = permission.Name,
+                            DisplayName = permission.DisplayName
+                        };
+
+                        groupDto.Permissions.Add(permissionDto);
+                    }
+                }
+
+                groupsDto.Add(groupDto);
+            }
+
+            return Ok(groupsDto);
+        }
+
+        // =========================================
+        // GROUPS
+        // =========================================
+
+        [HttpGet("groups")]
         public IActionResult Groups()
         {
             var groups = _securityService.GetAllSecurityGroup();
+
             var groupsDto = new List<Group>();
 
             foreach (var group in groups)
@@ -177,89 +313,148 @@ namespace Api.Controllers
                 {
                     Id = group.Id,
                     Name = group.Name,
-                    DisplayName = group.DisplayName
+                    DisplayName = group.DisplayName,
+                    Permissions = new List<Permission>()
                 };
 
-                foreach (var permission in group.Permissions)
+                if (group.Permissions != null)
                 {
-                    var permissionDto = new Permission
+                    foreach (var permission in group.Permissions)
                     {
-                        Id = permission.Id,
-                        Name = permission.Name,
-                        DisplayName = permission.DisplayName
-                    };
+                        var permissionDto = new Permission
+                        {
+                            Id = permission.Id,
+                            Name = permission.Name,
+                            DisplayName = permission.DisplayName
+                        };
 
-                    groupDto.Permissions.Add(permissionDto);
+                        groupDto.Permissions.Add(permissionDto);
+                    }
                 }
 
                 groupsDto.Add(groupDto);
             }
 
-            return new ObjectResult(groupsDto);
+            return Ok(groupsDto);
         }
 
-        [HttpGet]
-        [Route("GetUser")]
+        // =========================================
+        // GET USER
+        // =========================================
+
+        [HttpGet("getuser")]
         public IActionResult GetUser(string username)
         {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return BadRequest(new
+                {
+                    message = "Username is required."
+                });
+            }
+
             var user = _securityService.GetUser(username);
-            var userDto = new Dto.Security.User
+
+            if (user == null)
+            {
+                return NotFound(new
+                {
+                    message = "User not found."
+                });
+            }
+
+            var userDto = new User
             {
                 Id = user.Id,
                 FirstName = user.Firstname,
                 LastName = user.Lastname,
                 UserName = user.UserName,
-                Email = user.EmailAddress
+                Email = user.EmailAddress,
+                Roles = new List<Role>()
             };
 
-            foreach (var role in user.Roles)
+            if (user.Roles != null)
             {
-                var roleDto = new Dto.Security.Role
+                foreach (var role in user.Roles)
                 {
-                    Id = role.SecurityRoleId,
-                    Name = role.SecurityRole.Name,
-                    SysAdmin = role.SecurityRole.SysAdmin
-                };
-
-                userDto.Roles.Add(roleDto);
-
-                foreach (var permission in role.SecurityRole.Permissions)
-                {
-                    var permissionDto = new Dto.Security.Permission
+                    var roleDto = new Role
                     {
-                        Id = permission.SecurityPermissionId,
-                        Name = permission.SecurityPermission.Name,
-                        Group = new Dto.Security.Group
-                        {
-                            Name = permission.SecurityPermission.Group.Name
-                        }
+                        Id = role.SecurityRoleId,
+                        Name = role.SecurityRole?.Name,
+                        SysAdmin = role.SecurityRole?.SysAdmin ?? false,
+                        Permissions = new List<Permission>()
                     };
-                    roleDto.Permissions.Add(permissionDto);
+
+                    if (role.SecurityRole?.Permissions != null)
+                    {
+                        foreach (var permission in role.SecurityRole.Permissions)
+                        {
+                            var permissionDto = new Permission
+                            {
+                                Id = permission.SecurityPermissionId,
+                                Name = permission.SecurityPermission?.Name,
+                                Group = new Group
+                                {
+                                    Name = permission.SecurityPermission?.Group?.Name
+                                }
+                            };
+
+                            roleDto.Permissions.Add(permissionDto);
+                        }
+                    }
+
+                    userDto.Roles.Add(roleDto);
                 }
             }
 
-            return new ObjectResult(userDto);
+            return Ok(userDto);
         }
 
-        [HttpPost]
-        [Route("SaveCompany")]
-        public IActionResult SaveCompany([FromBody]Company companyDto)
+        // =========================================
+        // SAVE COMPANY
+        // =========================================
+
+        [HttpPost("savecompany")]
+        public IActionResult SaveCompany([FromBody] Company companyDto)
         {
-            string[] errors;
             try
             {
-                if (!ModelState.IsValid)
+                if (companyDto == null)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (var i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
-                    return new BadRequestObjectResult(errors);
+                    return BadRequest(new
+                    {
+                        message = "Company data is required."
+                    });
                 }
 
-                Core.Domain.Company company = companyDto.Id == 0
-                    ? new Core.Domain.Company()
-                    : _adminService.GetDefaultCompany();
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
+
+                    return BadRequest(errors);
+                }
+
+                Core.Domain.Company company;
+
+                if (companyDto.Id == 0)
+                {
+                    company = new Core.Domain.Company();
+                }
+                else
+                {
+                    company = _adminService.GetDefaultCompany();
+
+                    if (company == null)
+                    {
+                        return NotFound(new
+                        {
+                            message = "Company not found."
+                        });
+                    }
+                }
 
                 company.CompanyCode = companyDto.CompanyCode;
                 company.Name = companyDto.Name;
@@ -267,12 +462,17 @@ namespace Api.Controllers
 
                 _adminService.SaveCompany(company);
 
-                return new ObjectResult(Ok());
+                return Ok(new
+                {
+                    message = "Company saved successfully."
+                });
             }
             catch (Exception ex)
             {
-                errors = new[] { ex.InnerException != null ? ex.InnerException.Message : ex.Message };
-                return new BadRequestObjectResult(errors);
+                return StatusCode(500, new
+                {
+                    message = ex.InnerException?.Message ?? ex.Message
+                });
             }
         }
     }

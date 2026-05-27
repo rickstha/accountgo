@@ -41,9 +41,10 @@ export default class JournalEntryStore {
             editMode: observable,
         });
 
-        const journalEntryId = window.location.search.split("?id=")[1];
-        if (journalEntryId !== undefined)
-            this.getJournalEntry(parseInt(journalEntryId))
+        const urlParams = new URLSearchParams(window.location.search);
+        const journalEntryId = urlParams.get("id");
+        if (journalEntryId !== null && journalEntryId !== "")
+            this.getJournalEntry(parseInt(journalEntryId, 10));
         else
             this.changedEditMode(true);
     }
@@ -65,15 +66,18 @@ export default class JournalEntryStore {
                 }
                 this.journalEntry.id = result.data.id;                
                 this.journalEntry.voucherType = result.data.voucherType;
-                this.journalEntry.journalDate = result.data.journalDate;
+                this.journalEntry.journalDate = result.data.journalDate ? new Date(result.data.journalDate) : new Date();
                 this.journalEntry.memo = result.data.memo;
                 this.journalEntry.referenceNo = result.data.referenceNo;
                 this.journalEntry.posted = result.data.posted;
                 this.journalEntry.readyForPosting = result.data.readyForPosting;
 
-                const nodes = document.getElementById("divJournalEntryForm")!.getElementsByTagName('*');
-                for (let i = 0; i < nodes.length; i++) {
-                    nodes[i].className += " disabledControl";
+                const form = document.getElementById("divJournalEntryForm");
+                if (form) {
+                    const nodes = form.getElementsByTagName('*');
+                    for (let i = 0; i < nodes.length; i++) {
+                        nodes[i].className += " disabledControl";
+                    }
                 }
             });
     }

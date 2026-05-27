@@ -85,7 +85,7 @@ class Home extends React.Component<HomeProps, HomeState> {
                                 </li>
                             </ul>
                         </div>
-                     </div> {/*<!-- container-fluid --> */}
+                     </div> {/* container-fluid */}
                 </nav>
             </div>
 

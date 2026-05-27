@@ -17,12 +17,9 @@ const store = new SalesOrderStore(Number(quotationId), Number(orderId));
 class ValidationErrors extends React.Component {
   render() {
     if (store.validationErrors !== undefined && store.validationErrors.length > 0) {
-      const errors: string[] = [];
-
-      store.validationErrors.map(function(item: string, index: number) {
-        const errors: React.ReactNode[] = [];
-        errors.push(<li key={index}>{item}</li>);
-      });
+      const errors = store.validationErrors.map((item: string, index: number) => (
+        <li key={index}>{item}</li>
+      ));
 
       return (
         <div>
@@ -101,7 +98,7 @@ class SalesOrderHeader extends React.Component {
                 <div className="row">
                     <div className="col-sm-2">Date</div>
                     <div className="col-sm-10"><input type="date" className="form-control pull-right" onChange={this.onChangeOrderDate.bind(this)}
-                        value={store.salesOrder.orderDate !== undefined ? store.salesOrder.orderDate.toString().substring(0, 10) : new Date(Date.now()).toISOString().substring(0, 10)} /></div>
+                        value={store.salesOrder.orderDate !== undefined ? store.salesOrder.orderDate.toISOString().substring(0, 10) : new Date(Date.now()).toISOString().substring(0, 10)} /></div>
                 </div>
                 <div className="row">
                     <div className="col-sm-2">Reference no.</div>

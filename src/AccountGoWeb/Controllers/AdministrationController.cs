@@ -13,17 +13,17 @@ namespace AccountGoWeb.Controllers
       Models.SelectListItemHelper._config = config;
     }
 
-    public IActionResult Company()
+    public async System.Threading.Tasks.Task<IActionResult> Company()
     {
       ViewBag.PageContentHeader = "Company";
-      var model = GetAsync<Company>("administration/company").Result;
+      var model = await GetAsync<Company>("administration/company");
       if (model == null)
         model = new Company();
       return View(model);
     }
 
     [HttpPost]
-    public IActionResult Company(Company model)
+    public async System.Threading.Tasks.Task<IActionResult> Company(Company model)
     {
       ViewBag.PageContentHeader = "Company";
       if (ModelState.IsValid)
@@ -32,29 +32,32 @@ namespace AccountGoWeb.Controllers
         var content = new StringContent(serialize);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
-        var response = PostAsync("administration/savecompany", content);
+        var response = await PostAsync("administration/savecompany", content);
 
         return View(model);
       }
       return View(model);
     }
 
-    public IActionResult Settings()
+    public async System.Threading.Tasks.Task<IActionResult> Settings()
     {
       ViewBag.PageContentHeader = "Setup and Configuration";
       ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
-      var model = GetAsync<GeneralLedgerSetting>("administration/settings").Result;
+      var model = await GetAsync<GeneralLedgerSetting>("administration/settings");
       if (model == null)
         model = new GeneralLedgerSetting();
       return View(model);
     }
 
     [HttpPost]
-    public IActionResult SaveSettings(Models.Financial.GeneralLedgerSetting model)
+    public async System.Threading.Tasks.Task<IActionResult> SaveSettings(Models.Financial.GeneralLedgerSetting model)
     {
       if (ModelState.IsValid)
       {
-
+        var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
+        var content = new StringContent(serialize);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        await PostAsync("administration/savesettings", content);
       }
       ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
       ViewBag.PageContentHeader = "Setup and Configuration";
@@ -95,7 +98,7 @@ namespace AccountGoWeb.Controllers
     }
 
     [HttpGet]
-    public new IActionResult User(int id = 0)
+    public IActionResult UserDetail(int id = 0)
     {
       if (id != 0)
       {
@@ -110,7 +113,7 @@ namespace AccountGoWeb.Controllers
     }
 
     [HttpPost]
-    public new IActionResult User(Models.Account.RegisterViewModel model)
+    public async System.Threading.Tasks.Task<IActionResult> UserDetail(Models.Account.RegisterViewModel model)
     {
       try
       {
@@ -119,8 +122,9 @@ namespace AccountGoWeb.Controllers
           var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
           var content = new StringContent(serialize);
           content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-          HttpResponseMessage responseAddNewUser = Post("account/addnewuser", content);
-          Newtonsoft.Json.Linq.JObject resultAddNewUser = Newtonsoft.Json.Linq.JObject.Parse(responseAddNewUser.Content.ReadAsStringAsync().Result);
+          HttpResponseMessage responseAddNewUser = await Post("account/addnewuser", content);
+          string responseContent = await responseAddNewUser.Content.ReadAsStringAsync();
+          Newtonsoft.Json.Linq.JObject resultAddNewUser = Newtonsoft.Json.Linq.JObject.Parse(responseContent);
 
           if ((bool)resultAddNewUser["succeeded"]!)
           {
