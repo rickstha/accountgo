@@ -485,7 +485,7 @@ class PurchaseInvoiceLines extends React.Component {
     )=>{
     store.updateLineItem(
     Number(e.target.name),
-    "quality",
+    "quantity",
     e.target.value
 );
     };
