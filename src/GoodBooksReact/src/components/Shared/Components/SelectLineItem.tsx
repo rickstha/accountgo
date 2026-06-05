@@ -7,22 +7,22 @@ class SelectLineItem extends React.Component<any, {}>{
             this.props.store.updateLineItem(this.props.row, "itemId", e.target.value);
 
  
-        //if (e.target.value == "") {
-        //    if (this.props.row !== undefined) {
-        //        this.props.store.updateLineItem(this.props.row, "measurementId", "");
-        //        this.props.store.updateLineItem(this.props.row, "price", "");
-        //        this.props.store.updateLineItem(this.props.row, "code", "");
-        //        this.props.store.updateLineItem(this.props.row, "quantity", "");
+        if (e.target.value == "") {
+           if (this.props.row !== undefined) {
+               this.props.store.updateLineItem(this.props.row, "measurementId", "");
+               this.props.store.updateLineItem(this.props.row, "price", "");
+               this.props.store.updateLineItem(this.props.row, "code", "");
+               this.props.store.updateLineItem(this.props.row, "quantity", "");
 
-        //    }
-        //    else {
-        //        (document.getElementById("optNewMeasurementId") as HTMLInputElement).value = "";
-        //        (document.getElementById("txtNewAmount") as HTMLInputElement).value = "";
-        //        (document.getElementById("txtNewCode") as HTMLInputElement).value = "";
-        //        (document.getElementById("txtNewQuantity") as HTMLInputElement).value = "";
-        //    }
-        //    return;
-        //}
+           }
+           else {
+               (document.getElementById("optNewMeasurementId") as HTMLInputElement).value = "";
+               (document.getElementById("txtNewAmount") as HTMLInputElement).value = "";
+               (document.getElementById("txtNewCode") as HTMLInputElement).value = "";
+               (document.getElementById("txtNewQuantity") as HTMLInputElement).value = "";
+           }
+           return;
+        }
 
 
         if (e.target.value == "") {

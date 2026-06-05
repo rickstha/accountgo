@@ -142,19 +142,19 @@ class SalesOrderLines extends React.Component {
   }
 
   onChangeQuantity(e: any) {
-    store.updateLineItem(e.target.name, "quantity", e.target.value);
+    store.updateLineItem(Number(e.target.name), "quantity", e.target.value);
   }
 
   onChangeAmount(e: any) {
-    store.updateLineItem(e.target.name, "amount", e.target.value);
+    store.updateLineItem(Number(e.target.name), "amount", e.target.value);
   }
 
   onChangeDiscount(e: any) {
-    store.updateLineItem(e.target.name, "discount", e.target.value);
+    store.updateLineItem(Number(e.target.name), "discount", e.target.value);
   }
 
   onChangeCode(e: any) {
-    store.updateLineItem(e.target.name, "code", e.target.value);
+    store.updateLineItem(Number(e.target.name), "code", e.target.value);
   }
 
   onFocusOutItem(e: any, isNew: boolean, i: any) {

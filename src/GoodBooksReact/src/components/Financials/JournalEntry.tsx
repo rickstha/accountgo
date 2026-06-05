@@ -1,515 +1,411 @@
-﻿import * as React from "react";
-import { observer } from "mobx-react";
+﻿import React, { useState } from "react";
 
-import SelectVoucherType from "../Shared/Components/SelectVoucherType";
-import SelectAccount from "../Shared/Components/SelectAccount";
-import SelectDebitCredit from "../Shared/Components/SelectDebitCredit";
+interface JournalEntryLine {
+    accountId: number;
+    accountName: string;
+    drcr: "DR" | "CR";
+    amount: number;
+    memo: string;
+}
 
-import JournalEntryStore from "../Shared/Stores/Financials/JournalEntryStore";
+interface JournalEntryModel {
+    journalDate: string;
+    voucherType: string;
+    referenceNo: string;
+    memo: string;
+    posted: boolean;
+}
 
-const store = new JournalEntryStore();
+const JournalEntry: React.FC = () => {
+    const [entry, setEntry] = useState<JournalEntryModel>({
+        journalDate: new Date().toISOString().substring(0, 10),
+        voucherType: "Journal",
+        referenceNo: "",
+        memo: "",
+        posted: false
+    });
 
-const ValidationErrors = () => {
-    if (!store.validationErrors || store.validationErrors.length === 0) {
-        return null;
-    }
+    const [lines, setLines] = useState<JournalEntryLine[]>([]);
 
-    return (
-        <div>
-            <ul>
-                {store.validationErrors.map((item: string, index: number) => (
-                    <li key={index}>{item}</li>
-                ))}
-            </ul>
-        </div>
-    );
-};
+    const [newLine, setNewLine] = useState<JournalEntryLine>({
+        accountId: 0,
+        accountName: "",
+        drcr: "DR",
+        amount: 0,
+        memo: ""
+    });
 
-const ObservedValidationErrors = observer(ValidationErrors);
+    const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-class EditButton extends React.Component {
-    onClickEditButton = () => {
-        const container = document.getElementById("divJournalEntryForm");
+    const updateLine = (
+        index: number,
+        field: keyof JournalEntryLine,
+        value: any
+    ) => {
+        setLines(prevLines => {
+            const updated = [...prevLines];
+            updated[index] = {
+                ...updated[index],
+                [field]: value
+            };
+            return updated;
+        });
+    };
 
-        if (container) {
-            const nodes = container.getElementsByTagName("*");
+    const removeLine = (index: number) => {
+        setLines(prevLines => prevLines.filter((_, i) => i !== index));
+    };
 
-            for (let i = 0; i < nodes.length; i++) {
-                nodes[i].className = nodes[i].className.replace(
-                    " disabledControl",
-                    ""
-                );
-            }
+    const addLine = () => {
+        const amount = Number(newLine.amount) || 0;
+
+        if (!newLine.accountName.trim()) {
+            setValidationErrors(["Account is required"]);
+            return;
         }
 
-        store.changedEditMode(true);
+        if (amount <= 0) {
+            setValidationErrors(["Amount must be greater than zero"]);
+            return;
+        }
+
+        setLines(prevLines => [...prevLines, { ...newLine, amount }]);
+
+        setNewLine({
+            accountId: 0,
+            accountName: "",
+            drcr: "DR",
+            amount: 0,
+            memo: ""
+        });
+
+        setValidationErrors([]);
     };
 
-    render() {
-        return (
-            <a
-                href="#"
-                id="linkEdit"
-                onClick={this.onClickEditButton}
-                className={
-                    !store.journalEntry.posted && !store.editMode
-                        ? "btn"
-                        : "btn inactiveLink"
-                }
-            >
-                <i className="fa fa-edit"></i>
-                Edit
-            </a>
-        );
-    }
-}
+    const totalDebit = lines
+        .filter(x => x.drcr === "DR")
+        .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
 
-const ObservedEditButton = observer(EditButton);
+    const totalCredit = lines
+        .filter(x => x.drcr === "CR")
+        .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
 
-class SaveJournalEntryButton extends React.Component {
-    onClickSaveNewJournalEntry = () => {
-        store.saveNewJournalEntry();
+    const saveJournal = () => {
+        const errors: string[] = [];
+
+        if (lines.length === 0)
+            errors.push("At least one line item is required.");
+
+        if (totalDebit !== totalCredit)
+            errors.push("Debit and Credit totals must match.");
+
+        if (errors.length > 0) {
+            setValidationErrors(errors);
+            return;
+        }
+
+        console.log("Saving Journal Entry", {
+            header: entry,
+            lines
+        });
+
+        alert("Journal Entry Saved");
     };
 
-    render() {
-        return (
-            <input
-                type="button"
-                value="Save"
-                onClick={this.onClickSaveNewJournalEntry}
-                className={
-                    !store.journalEntry.posted && store.editMode
-                        ? "btn btn-sm btn-primary btn-flat pull-left"
-                        : "btn btn-sm btn-primary btn-flat pull-left inactiveLink"
-                }
-            />
-        );
-    }
-}
+    const postJournal = () => {
+        if (totalDebit !== totalCredit) {
+            alert("Journal is not balanced.");
+            return;
+        }
 
-const ObservedSaveJournalEntryButton = observer(
-    SaveJournalEntryButton
-);
+        setEntry(prevEntry => ({
+            ...prevEntry,
+            posted: true
+        }));
 
-class CancelJournalEntryButton extends React.Component {
-    cancelOnClick = () => {
-        const baseUrl =
-            location.protocol +
-            "//" +
-            location.hostname +
-            (location.port ? ":" + location.port : "") +
-            "/";
-
-        window.location.href = baseUrl + "financials/journalentries";
+        alert("Journal Posted");
     };
 
-    render() {
-        return (
-            <input
-                type="button"
-                onClick={this.cancelOnClick}
-                id="btnCancel"
-                className="btn btn-sm btn-default btn-flat pull-left"
-                value="Cancel"
-            />
-        );
-    }
-}
+    return (
+        <div className="container mt-3">
+            <h3>Journal Entry</h3>
 
-class PostJournalEntryButton extends React.Component {
-    postOnClick = () => {
-        store.postJournal();
-    };
-
-    render() {
-        return (
-            <input
-                type="button"
-                value="Post"
-                onClick={this.postOnClick}
-                className={
-                    !store.journalEntry.posted &&
-                    store.journalEntry.readyForPosting &&
-                    !store.editMode
-                        ? "btn btn-sm btn-primary btn-flat btn-danger pull-right"
-                        : "btn btn-sm btn-primary btn-flat btn-danger pull-right inactiveLink"
-                }
-            />
-        );
-    }
-}
-
-const ObservedPostJournalEntryButton = observer(
-    PostJournalEntryButton
-);
-
-class JournalEntryHeader extends React.Component {
-    onChangeJournalDate = (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        const dateValue = new Date(e.target.value);
-        store.changedJournalDate(dateValue);
-    };
-
-    onChangeReferenceNo = (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        store.changedReferenceNo(e.target.value);
-    };
-
-    onChangeMemo = (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        store.changedMemo(e.target.value);
-    };
-
-    render() {
-        return (
-            <div className="card">
-                <div className="card-header">
-                    <a
-                        data-toggle="collapse"
-                        href="#general"
-                        aria-expanded="true"
-                        aria-controls="general"
-                    >
-                        <i className="fa fa-align-justify"></i>
-                    </a>{" "}
-                    General
+            {validationErrors.length > 0 && (
+                <div className="alert alert-danger">
+                    <ul>
+                        {validationErrors.map((e, i) => (
+                            <li key={i}>{e}</li>
+                        ))}
+                    </ul>
                 </div>
+            )}
 
-                <div
-                    className="card-body collapse show row"
-                    id="general"
-                >
-                    <div className="col-sm-6">
-                        <div className="row">
-                            <div className="col-sm-3">Date</div>
+            <div className="card mb-3">
+                <div className="card-header">General</div>
 
-                            <div className="col-sm-9">
-                                <input
-                                    type="date"
-                                    className="form-control"
-                                    id="newJournalDate"
-                                    onChange={this.onChangeJournalDate}
-                                    value={
-                                        store.journalEntry.journalDate
-                                            ? store.journalEntry.journalDate
-                                                  .toISOString()
-                                                  .substring(0, 10)
-                                            : new Date()
-                                                  .toISOString()
-                                                  .substring(0, 10)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div className="row">
-                            <div className="col-sm-3">Voucher</div>
-
-                            <div className="col-sm-9">
-                                <SelectVoucherType
-                                    store={store}
-                                    controlId="optNewVoucherType"
-                                    selected={
-                                        store.journalEntry.voucherType
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div className="row">
-                            <div className="col-sm-3">
-                                Reference no
-                            </div>
-
-                            <div className="col-sm-9">
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={
-                                        store.journalEntry.referenceNo ||
-                                        ""
-                                    }
-                                    onChange={
-                                        this.onChangeReferenceNo
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div className="row">
-                            <div className="col-sm-3">Memo</div>
-
-                            <div className="col-sm-9">
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={
-                                        store.journalEntry.memo || ""
-                                    }
-                                    onChange={this.onChangeMemo}
-                                />
-                            </div>
-                        </div>
+                <div className="card-body">
+                    <div className="form-group">
+                        <label>Date</label>
+                        <input
+                            type="date"
+                            className="form-control"
+                            value={entry.journalDate}
+                            onChange={e =>
+                                setEntry(prevEntry => ({
+                                    ...prevEntry,
+                                    journalDate: e.target.value
+                                }))
+                            }
+                        />
                     </div>
 
-                    <div className="col-sm-6">
-                        <div className="row">
-                            <div className="col-sm-2">Posted</div>
+                    <div className="form-group">
+                        <label>Voucher Type</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            value={entry.voucherType}
+                            onChange={e =>
+                                setEntry(prevEntry => ({
+                                    ...prevEntry,
+                                    voucherType: e.target.value
+                                }))
+                            }
+                        />
+                    </div>
 
-                            <div className="col-sm-10">
-                                <input
-                                    type="checkbox"
-                                    readOnly
-                                    checked={
-                                        store.journalEntry.posted
-                                    }
-                                />
-                            </div>
-                        </div>
+                    <div className="form-group">
+                        <label>Reference No</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            value={entry.referenceNo}
+                            onChange={e =>
+                                setEntry(prevEntry => ({
+                                    ...prevEntry,
+                                    referenceNo: e.target.value
+                                }))
+                            }
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Memo</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            value={entry.memo}
+                            onChange={e =>
+                                setEntry(prevEntry => ({
+                                    ...prevEntry,
+                                    memo: e.target.value
+                                }))
+                            }
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Posted</label>
+                        <input
+                            type="checkbox"
+                            checked={entry.posted}
+                            readOnly
+                        />
                     </div>
                 </div>
             </div>
-        );
-    }
-}
 
-const ObservedJournalEntryHeader = observer(
-    JournalEntryHeader
-);
+            <div className="card mb-3">
+                <div className="card-header">Line Items</div>
 
-class JournalEntryLines extends React.Component {
-    onChangeAmount = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const index = Number(e.target.name);
-        store.updateLineItem(index, "amount", e.target.value);
-    };
-
-    onChangeMemo = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const index = Number(e.target.name);
-        store.updateLineItem(index, "memo", e.target.value);
-    };
-    onClickRemoveLineItem = (i: number) => {
-        store.removeLineItem(i);
-    };
-
-    addLineItem = () => {
-        const accountId = (
-            document.getElementById(
-                "optNewAccountId"
-            ) as HTMLInputElement
-        )?.value;
-
-        const drcr = (
-            document.getElementById(
-                "optNewDebitCredit"
-            ) as HTMLInputElement
-        )?.value;
-
-        const amount = (
-            document.getElementById(
-                "txtNewAmount"
-            ) as HTMLInputElement
-        )?.value;
-
-        const memo = (
-            document.getElementById(
-                "txtNewMemo"
-            ) as HTMLInputElement
-        )?.value;
-
-        store.addLineItem(
-            0,
-            Number(accountId),
-            Number(drcr),
-            Number(amount),
-            memo
-        );
-
-        (
-            document.getElementById(
-                "txtNewAmount"
-            ) as HTMLInputElement
-        ).value = "0";
-
-        (
-            document.getElementById(
-                "txtNewMemo"
-            ) as HTMLInputElement
-        ).value = "";
-    };
-
-    render() {
-        return (
-            <div className="card">
-                <div className="card-header">
-                    <a
-                        data-toggle="collapse"
-                        href="#line-items"
-                        aria-expanded="true"
-                        aria-controls="line-items"
-                    >
-                        <i className="fa fa-align-justify"></i>
-                    </a>{" "}
-                    Line Items
-                </div>
-
-                <div
-                    className="card-body collapse show table-responsive"
-                    id="line-items"
-                >
-                    <table className="table table-hover">
+                <div className="card-body">
+                    <table className="table table-bordered">
                         <thead>
                             <tr>
-                                <td>Account</td>
-                                <td>DrCr</td>
-                                <td>Amount</td>
-                                <td>Memo</td>
-                                <td></td>
+                                <th>Account</th>
+                                <th>DR/CR</th>
+                                <th>Amount</th>
+                                <th>Memo</th>
+                                <th></th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            {store.journalEntry.journalEntryLines.map(
-                                (line, i) => (
-                                    <tr key={i}>
-                                        <td>
-                                            <SelectAccount
-                                                store={store}
-                                                row={i}
-                                                selected={
-                                                    line.accountId
-                                                }
-                                            />
-                                        </td>
+                            {lines.map((line, index) => (
+                                <tr key={index}>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={line.accountName}
+                                            onChange={e =>
+                                                updateLine(
+                                                    index,
+                                                    "accountName",
+                                                    e.target.value
+                                                )
+                                            }
+                                        />
+                                    </td>
 
-                                        <td>
-                                            <SelectDebitCredit
-                                                store={store}
-                                                row={i}
-                                                selected={line.drcr}
-                                            />
-                                        </td>
+                                    <td>
+                                        <select
+                                            className="form-control"
+                                            value={line.drcr}
+                                            onChange={e =>
+                                                updateLine(
+                                                    index,
+                                                    "drcr",
+                                                    e.target.value
+                                                )
+                                            }
+                                        >
+                                            <option value="DR">DR</option>
+                                            <option value="CR">CR</option>
+                                        </select>
+                                    </td>
 
-                                        <td>
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                name={i.toString()}
-                                                onChange={
-                                                    this.onChangeAmount
-                                                }
-                                                value={line.amount.toString()}
-                                            />
-                                        </td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            value={line.amount}
+                                            onChange={e =>
+                                                updateLine(
+                                                    index,
+                                                    "amount",
+                                                    Number(e.target.value)
+                                                )
+                                            }
+                                        />
+                                    </td>
 
-                                        <td>
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                name={i.toString()}
-                                                onChange={
-                                                    this.onChangeMemo
-                                                }
-                                                value={line.memo || ""}
-                                            />
-                                        </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={line.memo}
+                                            onChange={e =>
+                                                updateLine(
+                                                    index,
+                                                    "memo",
+                                                    e.target.value
+                                                )
+                                            }
+                                        />
+                                    </td>
 
-                                        <td>
-                                            <button
-                                                type="button"
-                                                className="btn btn-box-tool"
-                                                onClick={() =>
-                                                    this.onClickRemoveLineItem(
-                                                        i
-                                                    )
-                                                }
-                                            >
-                                                <i className="fa fa-fw fa-times"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                )
-                            )}
+                                    <td>
+                                        <button
+                                            type="button"
+                                            className="btn btn-danger"
+                                            onClick={() =>
+                                                removeLine(index)
+                                            }
+                                        >
+                                            Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
 
                             <tr>
                                 <td>
-                                    <SelectAccount
-                                        store={store}
-                                        controlId="optNewAccountId"
+                                    <input
+                                        className="form-control"
+                                        value={newLine.accountName}
+                                        onChange={e =>
+                                            setNewLine(prevNewLine => ({
+                                                ...prevNewLine,
+                                                accountName: e.target.value
+                                            }))
+                                        }
                                     />
                                 </td>
 
                                 <td>
-                                    <SelectDebitCredit
-                                        store={store}
-                                        controlId="optNewDebitCredit"
+                                    <select
+                                        className="form-control"
+                                        value={newLine.drcr}
+                                        onChange={e =>
+                                            setNewLine(prevNewLine => ({
+                                                ...prevNewLine,
+                                                drcr: e.target.value as "DR" | "CR"
+                                            }))
+                                        }
+                                    >
+                                        <option value="DR">DR</option>
+                                        <option value="CR">CR</option>
+                                    </select>
+                                </td>
+
+                                <td>
+                                    <input
+                                        type="number"
+                                        className="form-control"
+                                        value={newLine.amount}
+                                        onChange={e =>
+                                            setNewLine(prevNewLine => ({
+                                                ...prevNewLine,
+                                                amount: Number(e.target.value)
+                                            }))
+                                        }
                                     />
                                 </td>
 
                                 <td>
                                     <input
-                                        type="text"
                                         className="form-control"
-                                        id="txtNewAmount"
-                                    />
-                                </td>
-
-                                <td>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        id="txtNewMemo"
+                                        value={newLine.memo}
+                                        onChange={e =>
+                                            setNewLine(prevNewLine => ({
+                                                ...prevNewLine,
+                                                memo: e.target.value
+                                            }))
+                                        }
                                     />
                                 </td>
 
                                 <td>
                                     <button
                                         type="button"
-                                        className="btn btn-box-tool"
-                                        onClick={this.addLineItem}
+                                        className="btn btn-success"
+                                        onClick={addLine}
                                     >
-                                        <i className="fa fa-fw fa-check"></i>
+                                        Add
                                     </button>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
+
+                    <div className="row">
+                        <div className="col">
+                            <strong>Total Debit:</strong> {totalDebit}
+                        </div>
+
+                        <div className="col">
+                            <strong>Total Credit:</strong> {totalCredit}
+                        </div>
+                    </div>
                 </div>
             </div>
-        );
-    }
-}
 
-const ObservedJournalEntryLines = observer(
-    JournalEntryLines
-);
+            <button
+                type="button"
+                className="btn btn-primary mr-2"
+                onClick={saveJournal}
+            >
+                Save
+            </button>
 
-class JournalEntry extends React.Component {
-    render() {
-        return (
-            <div>
-                <div id="divActionsTop">
-                    <ObservedEditButton />
-                </div>
+            <button
+                type="button"
+                className="btn btn-danger"
+                onClick={postJournal}
+            >
+                Post
+            </button>
+        </div>
+    );
+};
 
-                <div id="divJournalEntryForm">
-                    <ObservedValidationErrors />
-                    <ObservedJournalEntryHeader />
-                    <ObservedJournalEntryLines />
-                </div>
-
-                <div id="divActionsBottom">
-                    <ObservedSaveJournalEntryButton />
-                    <CancelJournalEntryButton />
-                    <ObservedPostJournalEntryButton />
-                </div>
-            </div>
-        );
-    }
-}
-
-const ObservedJournalEntry = observer(JournalEntry);
-
-export default ObservedJournalEntry;
+export default JournalEntry;

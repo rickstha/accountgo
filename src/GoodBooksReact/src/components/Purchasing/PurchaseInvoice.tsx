@@ -8,7 +8,6 @@ import SelectLineItem from "../Shared/Components/SelectLineItem";
 import SelectLineMeasurement from "../Shared/Components/SelectLineMeasurement";
 
 import PurchaseInvoiceStore from "../Shared/Stores/Purchasing/PurchaseInvoiceStore";
-import PurchaseInvoiceLine from "../Shared/Stores/Purchasing/PurchaseInvoiceLine";
 
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -444,7 +443,7 @@ class PurchaseInvoiceLines extends React.Component {
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
         store.updateLineItem(
-            e.target.name,
+            Number(e.target.name),
             "quantity",
             e.target.value
         );
@@ -454,7 +453,7 @@ class PurchaseInvoiceLines extends React.Component {
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
         store.updateLineItem(
-            e.target.name,
+            Number(e.target.name),
             "amount",
             e.target.value
         );
@@ -464,7 +463,7 @@ class PurchaseInvoiceLines extends React.Component {
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
         store.updateLineItem(
-            e.target.name,
+            Number(e.target.name),
             "discount",
             e.target.value
         );
@@ -474,11 +473,23 @@ class PurchaseInvoiceLines extends React.Component {
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
         store.updateLineItem(
-            e.target.name,
+            Number(e.target.name),
             "code",
             e.target.value
         );
     };
+    //miner codes with values 1 quantity
+
+    onChangeCodeMain = (
+        e:React.ChangeEvent<HTMLInputElement>
+    )=>{
+    store.updateLineItem(
+    Number(e.target.name),
+    "quality",
+    e.target.value
+);
+    };
+
 
     render() {
         return (
@@ -508,7 +519,9 @@ class PurchaseInvoiceLines extends React.Component {
                                 <td>Amount</td>
                                 <td>Discount</td>
                                 <td>Total</td>
-                                <td></td>
+                                <td>Quantity</td>
+
+                               
                             </tr>
                         </thead>
 
