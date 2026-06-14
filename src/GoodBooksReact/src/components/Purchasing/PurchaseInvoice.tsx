@@ -39,6 +39,22 @@ class ValidationErrors extends React.Component {
     }
 }
 
+//observing gthe main website copying the logic
+
+const MainEventObserver = observer(ValidationErrors);
+
+ class MainEditButton extends React.component{
+    onclickEditButton= (
+        eveng:React.MouseEvent<HTMLAllCollection>
+    ) => {
+        event?.preventDefault();
+        
+        const container = document.getElementById(
+            "divPurchaseInvoiceFrom"
+        );
+    }
+ }
+
 const ObservedValidationErrors = observer(ValidationErrors);
 
 class EditButton extends React.Component {
@@ -100,7 +116,7 @@ class SavePurchaseInvoiceButton extends React.Component {
                 onClick={this.saveNewPurchaseInvoice}
                 className={
                     !store.purchaseInvoice.posted &&
-                    store.editMode
+                    store.editMode 
                         ? "btn btn-sm btn-primary btn-flat pull-left"
                         : "btn btn-sm btn-primary btn-flat pull-left inactiveLink"
                 }
@@ -521,7 +537,6 @@ class PurchaseInvoiceLines extends React.Component {
                                 <td>Total</td>
                                 <td>Quantity</td>
 
-                               
                             </tr>
                         </thead>
 
