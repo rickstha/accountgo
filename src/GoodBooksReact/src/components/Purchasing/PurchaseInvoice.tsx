@@ -39,22 +39,6 @@ class ValidationErrors extends React.Component {
     }
 }
 
-//observing gthe main website copying the logic
-
-const MainEventObserver = observer(ValidationErrors);
-
- class MainEditButton extends React.component{
-    onclickEditButton= (
-        eveng:React.MouseEvent<HTMLAllCollection>
-    ) => {
-        event?.preventDefault();
-        
-        const container = document.getElementById(
-            "divPurchaseInvoiceFrom"
-        );
-    }
- }
-
 const ObservedValidationErrors = observer(ValidationErrors);
 
 class EditButton extends React.Component {
@@ -494,19 +478,6 @@ class PurchaseInvoiceLines extends React.Component {
             e.target.value
         );
     };
-    //miner codes with values 1 quantity
-
-    onChangeCodeMain = (
-        e:React.ChangeEvent<HTMLInputElement>
-    )=>{
-    store.updateLineItem(
-    Number(e.target.name),
-    "quantity",
-    e.target.value
-);
-    };
-
-
     render() {
         return (
             <div className="card">
@@ -535,8 +506,7 @@ class PurchaseInvoiceLines extends React.Component {
                                 <td>Amount</td>
                                 <td>Discount</td>
                                 <td>Total</td>
-                                <td>Quantity</td>
-
+                                <td>Action</td>
                             </tr>
                         </thead>
 

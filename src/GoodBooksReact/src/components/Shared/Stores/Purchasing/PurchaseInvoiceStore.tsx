@@ -12,7 +12,7 @@ const baseUrl = location.protocol
     + (location.port && ":" + location.port)
     + "/";
 
-export default class PurchaseOrderStore {
+export default class PurchaseInvoiceStore {
     purchaseInvoice;
     commonStore;
     validationErrors: string[] = [];
@@ -48,7 +48,7 @@ export default class PurchaseOrderStore {
 
         autorun(() => this.computeTotals());
 
-        if (purchId !== undefined) {
+        if (purchId > 0) {
             axios.get(Config.API_URL + "purchasing/purchaseorder?id=" + purchId)
                 .then((result) => {
                     for (let i = 0; i < result.data.purchaseOrderLines.length; i++) {
@@ -75,7 +75,7 @@ export default class PurchaseOrderStore {
                 })
                 .catch(() => {});
         }
-        else if (invoiceId !== undefined) {
+        else if (invoiceId > 0) {
             axios.get(Config.API_URL + "purchasing/purchaseinvoice?id=" + invoiceId)
                 .then((result) => {
                     for (let i = 0; i < result.data.purchaseInvoiceLines.length; i++) {
@@ -88,7 +88,7 @@ export default class PurchaseOrderStore {
                             result.data.purchaseInvoiceLines[i].discount,
                             result.data.purchaseInvoiceLines[i].code
                         );
-                        const itemCode = this.changeItemCode(result.data.purchaseInvoiceLines[i].itemId) || ''; // Provide a default value if the item code is undefined
+                        const itemCode = this.changeItemCode(result.data.purchaseInvoiceLines[i].itemId) || '';
                         this.updateLineItem(i, 'code', itemCode);
                     }
 
@@ -103,9 +103,12 @@ export default class PurchaseOrderStore {
 
                     this.computeTotals();
 
-                    const nodes = document.getElementById("divPurchaseInvoiceForm")!.getElementsByTagName('*');
-                    for (let i = 0; i < nodes.length; i++) {
-                        nodes[i].className += " disabledControl";
+                    const form = document.getElementById("divPurchaseInvoiceForm");
+                    if (form) {
+                        const nodes = form.getElementsByTagName('*');
+                        for (let i = 0; i < nodes.length; i++) {
+                            nodes[i].className += " disabledControl";
+                        }
                     }
                 })
                 .catch(() => {});
@@ -116,22 +119,51 @@ export default class PurchaseOrderStore {
     }
 
     computeTotals() {
-        let rtotal = 0;
-        let ttotal = 0;
+        const lines = this.purchaseInvoice.purchaseInvoiceLines || [];
+        this.RTotal = 0;
 
-        for (let i = 0; i < this.purchaseInvoice.purchaseInvoiceLines.length; i++) {
-            const lineItem = this.purchaseInvoice.purchaseInvoiceLines[i];
-            rtotal = rtotal + this.getLineTotal(i);
-            axios.get(Config.API_URL + "tax/gettax?itemId=" + lineItem.itemId + "&partyId=" + this.purchaseInvoice.vendorId + "&type=2")
-                .then((result) => {
-                    if (result.data.length > 0) {
-                        ttotal = ttotal + this.commonStore.getPurhcaseLineTaxAmount(lineItem.quantity, lineItem.amount, lineItem.discount, result.data);
-                    }
-                    this.TTotal = ttotal;
-                    this.GTotal = rtotal + ttotal;
-                });
-            this.RTotal = rtotal;
+        for (let i = 0; i < lines.length; i++) {
+            this.RTotal += this.getLineTotal(i);
         }
+
+        if (lines.length === 0) {
+            this.TTotal = 0;
+            this.GTotal = 0;
+            return;
+        }
+
+        const taxRequests = lines.map((lineItem) =>
+            axios.get(
+                Config.API_URL +
+                    "tax/gettax?itemId=" +
+                    lineItem.itemId +
+                    "&partyId=" +
+                    this.purchaseInvoice.vendorId +
+                    "&type=2"
+            )
+        );
+
+        Promise.all(taxRequests)
+            .then((responses) => {
+                let taxTotal = 0;
+                responses.forEach((response, index) => {
+                    const lineItem = lines[index];
+                    if (response.data && response.data.length > 0) {
+                        taxTotal += this.commonStore.getPurhcaseLineTaxAmount(
+                            lineItem.quantity,
+                            lineItem.amount,
+                            lineItem.discount,
+                            response.data
+                        );
+                    }
+                });
+                this.TTotal = taxTotal;
+                this.GTotal = this.RTotal + taxTotal;
+            })
+            .catch(() => {
+                this.TTotal = 0;
+                this.GTotal = this.RTotal;
+            });
     }
 
     savePurchaseInvoice() {
