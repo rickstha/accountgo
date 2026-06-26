@@ -139,6 +139,15 @@ namespace Api.Controllers
                 });
             }
 
+            if (!string.IsNullOrWhiteSpace(companyCode) &&
+                !string.Equals(company.CompanyCode, companyCode, StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound(new
+                {
+                    message = "Company not found for the provided code."
+                });
+            }
+
             return Ok(company);
         }
 
