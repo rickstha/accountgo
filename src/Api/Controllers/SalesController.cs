@@ -43,18 +43,21 @@ namespace Api.Controllers
         [Route("SaveCustomer")]
         public IActionResult SaveCustomer([FromBody]Dto.Sales.Customer customerDto)
         {
+            if (customerDto == null)
+            {
+                return BadRequest("Customer data is required.");
+            }
+
             bool isNew = customerDto.Id == 0;
             Core.Domain.Sales.Customer customer = null;
 
             if (isNew)
             {
                 customer = new Core.Domain.Sales.Customer();
-
                 customer.Party = new Core.Domain.Party()
                 {
                     PartyType = Core.Domain.PartyTypes.Customer,
                 };
-
                 customer.PrimaryContact = new Core.Domain.Contact()
                 {
                     ContactType = Core.Domain.ContactTypes.Customer,
@@ -69,19 +72,33 @@ namespace Api.Controllers
                 customer = _salesService.GetCustomerById(customerDto.Id);
             }
 
+            if (customer == null)
+            {
+                return NotFound("Customer not found.");
+            }
+
+            customer.Party ??= new Core.Domain.Party();
+            customer.PrimaryContact ??= new Core.Domain.Contact() { Party = new Core.Domain.Party() };
+            customer.PrimaryContact.Party ??= new Core.Domain.Party();
+
             customer.No = customerDto.No;
             customer.Party.Name = customerDto.Name;
             customer.Party.Phone = customerDto.Phone;
             customer.Party.Email = customerDto.Email;
             customer.Party.Fax = customerDto.Fax;
             customer.Party.Website = customerDto.Website;
-            customer.PrimaryContact.FirstName = customerDto.PrimaryContact.FirstName;
-            customer.PrimaryContact.LastName = customerDto.PrimaryContact.LastName;
-            customer.PrimaryContact.Party.Name = customerDto.PrimaryContact.Party.Name;
-            customer.PrimaryContact.Party.Phone = customerDto.PrimaryContact.Party.Phone;
-            customer.PrimaryContact.Party.Email = customerDto.PrimaryContact.Party.Email;
-            customer.PrimaryContact.Party.Fax = customerDto.PrimaryContact.Party.Fax;
-            customer.PrimaryContact.Party.Website = customerDto.PrimaryContact.Party.Website;
+
+            if (customerDto.PrimaryContact != null)
+            {
+                customer.PrimaryContact.FirstName = customerDto.PrimaryContact.FirstName;
+                customer.PrimaryContact.LastName = customerDto.PrimaryContact.LastName;
+                customer.PrimaryContact.Party.Name = customerDto.PrimaryContact.Party?.Name;
+                customer.PrimaryContact.Party.Phone = customerDto.PrimaryContact.Party?.Phone;
+                customer.PrimaryContact.Party.Email = customerDto.PrimaryContact.Party?.Email;
+                customer.PrimaryContact.Party.Fax = customerDto.PrimaryContact.Party?.Fax;
+                customer.PrimaryContact.Party.Website = customerDto.PrimaryContact.Party?.Website;
+            }
+
             customer.AccountsReceivableAccountId = customerDto.AccountsReceivableId;
             customer.SalesAccountId = customerDto.SalesAccountId;
             customer.CustomerAdvancesAccountId = customerDto.PrepaymentAccountId;
@@ -106,6 +123,11 @@ namespace Api.Controllers
             {
                 var customer = _salesService.GetCustomerById(id);
 
+                customer ??= new Core.Domain.Sales.Customer();
+                customer.Party ??= new Core.Domain.Party();
+                customer.PrimaryContact ??= new Core.Domain.Contact() { Party = new Core.Domain.Party() };
+                customer.PrimaryContact.Party ??= new Core.Domain.Party();
+
                 var customerDto = new Dto.Sales.Customer()
                 {
                     Id = customer.Id,
@@ -125,6 +147,8 @@ namespace Api.Controllers
 
                 if (customer.PrimaryContact != null)
                 {
+                    customerDto.PrimaryContact ??= new Dto.Sales.Contact();
+                    customerDto.PrimaryContact.Party ??= new Dto.Sales.Party();
                     customerDto.PrimaryContact.FirstName = customer.PrimaryContact.FirstName;
                     customerDto.PrimaryContact.LastName = customer.PrimaryContact.LastName;
                     customerDto.PrimaryContact.Party.Email = customer.PrimaryContact.Party.Email;
@@ -165,7 +189,9 @@ namespace Api.Controllers
                     customerDto.Fax = customer.Party.Fax;
                     customerDto.Balance = customer.Balance;
                     customerDto.PrepaymentAccountId = customer.CustomerAdvancesAccountId;
-                    customerDto.Contact = customer.PrimaryContact.FirstName + " " + customer.PrimaryContact.LastName;
+                    customerDto.Contact = customer.PrimaryContact != null
+                        ? string.Join(" ", new[] { customer.PrimaryContact.FirstName, customer.PrimaryContact.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                        : string.Empty;
                     customerDto.TaxGroup = customer.TaxGroup == null ? string.Empty : customer.TaxGroup.Description;
                     customersDto.Add(customerDto);
                 }
@@ -194,16 +220,16 @@ namespace Api.Controllers
                     {
                         Id = salesOrder.Id,
                         PaymentTermId = salesOrder.PaymentTermId,
-                        CustomerId = salesOrder.CustomerId.Value,
-                        CustomerNo = salesOrder.Customer.No,
-                        CustomerName = salesOrder.Customer.Party.Name,
+                        CustomerId = salesOrder.CustomerId.GetValueOrDefault(),
+                        CustomerNo = salesOrder.Customer?.No ?? string.Empty,
+                        CustomerName = salesOrder.Customer?.Party?.Name ?? string.Empty,
                         OrderDate = salesOrder.Date,
                         ReferenceNo = salesOrder.ReferenceNo,
                         StatusId = (int)salesOrder.Status.GetValueOrDefault(),
                         No = salesOrder.No
                     };
 
-                    foreach (var line in salesOrder.SalesOrderLines)
+                    foreach (var line in salesOrder.SalesOrderLines ?? new List<Core.Domain.Sales.SalesOrderLine>())
                     {
                         var lineDto = new Dto.Sales.SalesOrderLine()
                         {
@@ -239,9 +265,9 @@ namespace Api.Controllers
                 var salesOrderDto = new Dto.Sales.SalesOrder()
                 {
                     Id = salesOrder.Id,
-                    CustomerId = salesOrder.CustomerId.Value,
-                    CustomerNo = salesOrder.Customer.No,
-                    CustomerName = _salesService.GetCustomerById(salesOrder.CustomerId.Value).Party.Name,
+                    CustomerId = salesOrder.CustomerId.GetValueOrDefault(),
+                    CustomerNo = salesOrder.Customer?.No ?? string.Empty,
+                    CustomerName = salesOrder.Customer?.Party?.Name ?? string.Empty,
                     OrderDate = salesOrder.Date,
                     PaymentTermId = salesOrder.PaymentTermId,
                     ReferenceNo = salesOrder.ReferenceNo,
@@ -249,7 +275,7 @@ namespace Api.Controllers
                     SalesOrderLines = new List<Dto.Sales.SalesOrderLine>()
                 };
 
-                foreach (var line in salesOrder.SalesOrderLines)
+                foreach (var line in salesOrder.SalesOrderLines ?? new List<Core.Domain.Sales.SalesOrderLine>())
                 {
                     var lineDto = new Dto.Sales.SalesOrderLine();
                     lineDto.Id = line.Id;
@@ -330,13 +356,20 @@ namespace Api.Controllers
         {
             try
             {
+                if (salesorderDto == null)
+                {
+                    return BadRequest("Sales order data is required.");
+                }
+
                 var salesOrder = new Core.Domain.Sales.SalesOrderHeader()
                 {
                     CustomerId = salesorderDto.CustomerId,
                     Date = salesorderDto.OrderDate,
                 };
 
-                foreach (var line in salesorderDto.SalesOrderLines)
+                salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
+
+                foreach (var line in salesorderDto.SalesOrderLines ?? new List<Dto.Sales.SalesOrderLine>())
                 {
                     var salesOrderLine = new Core.Domain.Sales.SalesOrderLine();
                     salesOrderLine.Amount = line.Amount.GetValueOrDefault();
@@ -587,6 +620,11 @@ namespace Api.Controllers
                     return new BadRequestObjectResult(errors);
                 }
 
+                if (salesOrderDto == null)
+                {
+                    return BadRequest("Sales order data is required.");
+                }
+
                 bool isNew = salesOrderDto.Id == 0;
                 Core.Domain.Sales.SalesOrderHeader salesOrder = null;
 
@@ -608,12 +646,13 @@ namespace Api.Controllers
                     salesOrder = _salesService.GetSalesOrderById(salesOrderDto.Id);
                 }
 
+                salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
                 salesOrder.CustomerId = salesOrderDto.CustomerId;
                 salesOrder.Date = salesOrderDto.OrderDate;
                 salesOrder.PaymentTermId = salesOrderDto.PaymentTermId;
                 salesOrder.ReferenceNo = salesOrderDto.ReferenceNo;
 
-                foreach (var line in salesOrderDto.SalesOrderLines)
+                foreach (var line in salesOrderDto.SalesOrderLines ?? new List<Dto.Sales.SalesOrderLine>())
                 {
                     if (!isNew)
                     {
@@ -734,6 +773,11 @@ namespace Api.Controllers
                     return new BadRequestObjectResult(errors);
                 }
 
+                if (salesInvoiceDto == null)
+                {
+                    return BadRequest("Sales invoice data is required.");
+                }
+
                 bool isNew = salesInvoiceDto.Id == 0;
                 Core.Domain.Sales.SalesInvoiceHeader salesInvoice = null;
                 Core.Domain.Sales.SalesOrderHeader salesOrder = null;
@@ -762,8 +806,9 @@ namespace Api.Controllers
                     salesInvoice.Date = salesInvoiceDto.InvoiceDate;
                     salesInvoice.PaymentTermId = salesInvoiceDto.PaymentTermId;
                     salesInvoice.ReferenceNo = salesInvoiceDto.ReferenceNo;
+                    salesInvoice.SalesInvoiceLines ??= new List<Core.Domain.Sales.SalesInvoiceLine>();
 
-                    foreach (var line in salesInvoiceDto.SalesInvoiceLines)
+                    foreach (var line in salesInvoiceDto.SalesInvoiceLines ?? new List<Dto.Sales.SalesInvoiceLine>())
                     {
                         var salesInvoiceLine = new Core.Domain.Sales.SalesInvoiceLine();
 
@@ -808,8 +853,9 @@ namespace Api.Controllers
                     salesInvoice.PaymentTermId = salesInvoiceDto.PaymentTermId;
                     salesInvoice.ReferenceNo = salesInvoiceDto.ReferenceNo;
                     salesInvoice.CustomerId = salesInvoiceDto.CustomerId;
+                    salesInvoice.SalesInvoiceLines ??= new List<Core.Domain.Sales.SalesInvoiceLine>();
 
-                    foreach (var line in salesInvoiceDto.SalesInvoiceLines)
+                    foreach (var line in salesInvoiceDto.SalesInvoiceLines ?? new List<Dto.Sales.SalesInvoiceLine>())
                     {
                         var existingLine = salesInvoice.SalesInvoiceLines.Where(id => id.Id == line.Id).FirstOrDefault();
                         if (salesInvoice.SalesInvoiceLines.Where(id => id.Id == line.Id).FirstOrDefault() != null)
@@ -847,8 +893,20 @@ namespace Api.Controllers
                             // you will retrieve salesorder one time.
                             if (salesOrder == null)
                             {
-                                // use the last value of existingLine
-                                salesOrder = _salesService.GetSalesOrderLineById(existingLine.SalesOrderLine.SalesOrderHeaderId).SalesOrderHeader;
+                                if (existingLine?.SalesOrderLine != null)
+                                {
+                                    salesOrder = _salesService.GetSalesOrderLineById(existingLine.SalesOrderLine.Id).SalesOrderHeader;
+                                }
+                                else if (salesInvoiceDto.FromSalesOrderId.HasValue)
+                                {
+                                    salesOrder = _salesService.GetSalesOrderById(salesInvoiceDto.FromSalesOrderId.Value);
+                                }
+                                else
+                                {
+                                    salesOrder = new Core.Domain.Sales.SalesOrderHeader();
+                                }
+
+                                salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
                                 salesOrder.SalesOrderLines.Add(salesOrderLine);
                             }
 
@@ -901,6 +959,11 @@ namespace Api.Controllers
                     return new BadRequestObjectResult(errors);
                 }
 
+                if (quotationDto == null)
+                {
+                    return BadRequest("Quotation data is required.");
+                }
+
                 bool isNew = quotationDto.Id == 0;
                 Core.Domain.Sales.SalesQuoteHeader salesQuote = null;
 
@@ -921,7 +984,9 @@ namespace Api.Controllers
                 salesQuote.ReferenceNo = quotationDto.ReferenceNo;
                 salesQuote.PaymentTermId = quotationDto.PaymentTermId;
                 
-                foreach (var line in quotationDto.SalesQuotationLines)
+                salesQuote.SalesQuoteLines ??= new List<Core.Domain.Sales.SalesQuoteLine>();
+
+                foreach (var line in quotationDto.SalesQuotationLines ?? new List<Dto.Sales.SalesQuotationLine>())
                 {
                     if (!isNew)
                     {
@@ -1005,16 +1070,35 @@ namespace Api.Controllers
                     return new BadRequestObjectResult(errors);
                 }
 
-                var bank = _financialService.GetCashAndBanks().Where(id => id.Id == (int)receiptDto.AccountToDebitId).FirstOrDefault();
+                if (receiptDto == null)
+                {
+                    return BadRequest("Receipt data is required.");
+                }
+
+                var accountToDebitId = (int?)receiptDto.AccountToDebitId;
+                var accountToCreditId = (int?)receiptDto.AccountToCreditId;
+                var customerId = (int?)receiptDto.CustomerId;
+                var amount = (decimal?)receiptDto.Amount;
+
+                if (!accountToDebitId.HasValue || !accountToCreditId.HasValue || !customerId.HasValue || !amount.HasValue)
+                {
+                    return BadRequest("Receipt payload is incomplete.");
+                }
+
+                var bank = _financialService.GetCashAndBanks().FirstOrDefault(id => id.Id == accountToDebitId.Value);
+                if (bank == null)
+                {
+                    throw new Exception("Invalid debit account.");
+                }
 
                 var salesReceipt = new Core.Domain.Sales.SalesReceiptHeader();
                 salesReceipt.Date = receiptDto.ReceiptDate;
-                salesReceipt.CustomerId = receiptDto.CustomerId;
+                salesReceipt.CustomerId = customerId.Value;
                 salesReceipt.AccountToDebitId = bank.AccountId;
-                salesReceipt.Amount = receiptDto.Amount;
+                salesReceipt.Amount = amount.Value;
 
-                var customer = _salesService.GetCustomerById((int)receiptDto.CustomerId);
-                if (customer.CustomerAdvancesAccountId != (int)receiptDto.AccountToCreditId)
+                var customer = _salesService.GetCustomerById(customerId.Value);
+                if (customer.CustomerAdvancesAccountId != accountToCreditId.Value)
                     throw new Exception("Invalid account.");
 
                 var salesReceiptLine = new Core.Domain.Sales.SalesReceiptLine();
@@ -1053,7 +1137,12 @@ namespace Api.Controllers
                     return new BadRequestObjectResult(errors);
                 }
 
-                foreach (var line in allocationDto.AllocationLines)
+                if (allocationDto == null)
+                {
+                    return BadRequest("Allocation data is required.");
+                }
+
+                foreach (var line in allocationDto.AllocationLines ?? new List<dynamic>())
                 {
                     decimal? amount = (decimal?)line.AmountToAllocate;
                     if (amount.HasValue)
@@ -1143,6 +1232,8 @@ namespace Api.Controllers
                 };
 
                 decimal? totalTax = 0;
+                var subtotal = salesInvoice.SalesInvoiceLines.Sum(line => (line.Amount ?? 0) * (line.Quantity ?? 0));
+
                 foreach (var line in salesInvoice.SalesInvoiceLines)
                 {
                     var lineDto = new Dto.Sales.SalesInvoiceLine();
@@ -1167,8 +1258,9 @@ namespace Api.Controllers
                     }
                     salesInvoiceDto.SalesInvoiceLines.Add(lineDto);
                 }
+                salesInvoiceDto.Amount = subtotal;
                 salesInvoiceDto.TotalTax = totalTax;
-                salesInvoiceDto.TotalAmountAfterTax = (salesInvoiceDto.Amount + salesInvoiceDto.TotalTax);
+                salesInvoiceDto.TotalAmountAfterTax = subtotal + (totalTax ?? 0);
 
 
                 return new ObjectResult(salesInvoiceDto);

@@ -90,7 +90,7 @@ const JournalEntry: React.FC = () => {
         .filter(x => x.drcr === "CR")
         .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
 
-    const saveJournal = () => {
+    const saveJournal = () => {0
         const errors: string[] = [];
 
         if (lines.length === 0)
