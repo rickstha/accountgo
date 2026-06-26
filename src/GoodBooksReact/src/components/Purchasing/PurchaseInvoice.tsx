@@ -1,7 +1,6 @@
 ﻿import * as React from "react";
 import { observer } from "mobx-react";
 import accounting from "accounting";
-
 import SelectVendor from "../Shared/Components/SelectVendor";
 import SelectPaymentTerm from "../Shared/Components/SelectPaymentTerm";
 import SelectLineItem from "../Shared/Components/SelectLineItem";
@@ -561,6 +560,18 @@ class PurchaseInvoiceLines extends React.Component {
                                                     this
                                                         .onChangeQuantity
                                                 }
+                                            />
+                                        </td>
+
+                                        {/* main input files added */}
+
+                                        <td>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                name={i.toString()}
+                                                value={line.measurementId.toString()}
+                                                onChange={this.onChangeCode}
                                             />
                                         </td>
 
