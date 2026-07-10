@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 
 interface JournalEntryLine {
     accountId: number;
@@ -15,6 +15,18 @@ interface JournalEntryModel {
     memo: string;
     posted: boolean;
 }
+
+interface CustomerTaxProfile {
+    id: number;
+    name: string;
+    taxRate: number;
+}
+
+const customerTaxProfiles: CustomerTaxProfile[] = [
+    { id: 1, name: "Customer A", taxRate: 5 },
+    { id: 2, name: "Customer B", taxRate: 12 },
+    { id: 3, name: "Customer C", taxRate: 18 }
+];
 
 const JournalEntry: React.FC = () => {
     const [entry, setEntry] = useState<JournalEntryModel>({
@@ -36,6 +48,33 @@ const JournalEntry: React.FC = () => {
     });
 
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [selectedCustomerId, setSelectedCustomerId] = useState<number>(0);
+    const [taxSummary, setTaxSummary] = useState({
+        subtotal: 0,
+        taxRate: 0,
+        taxAmount: 0,
+        total: 0
+    });
+
+    useEffect(() => {
+        const subtotal = lines.reduce(
+            (sum, line) => sum + (Number(line.amount) || 0),
+            0
+        );
+
+        const selectedCustomer = customerTaxProfiles.find(
+            customer => customer.id === selectedCustomerId
+        );
+        const taxRate = selectedCustomer?.taxRate ?? 0;
+        const taxAmount = subtotal * (taxRate / 100);
+
+        setTaxSummary({
+            subtotal,
+            taxRate,
+            taxAmount,
+            total: subtotal + taxAmount
+        });
+    }, [lines, selectedCustomerId]);
 
     const updateLine = (
         index: number,
@@ -90,7 +129,7 @@ const JournalEntry: React.FC = () => {
         .filter(x => x.drcr === "CR")
         .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
 
-    const saveJournal = () => {0
+    const saveJournal = () => {
         const errors: string[] = [];
 
         if (lines.length === 0)
@@ -211,6 +250,45 @@ const JournalEntry: React.FC = () => {
                             checked={entry.posted}
                             readOnly
                         />
+                    </div>
+                </div>
+            </div>
+
+            <div className="card mb-3">
+                <div className="card-header">Customer & Tax Summary</div>
+
+                <div className="card-body">
+                    <div className="form-group">
+                        <label>Customer</label>
+                        <select
+                            className="form-control"
+                            value={selectedCustomerId}
+                            onChange={e =>
+                                setSelectedCustomerId(Number(e.target.value))
+                            }
+                        >
+                            <option value={0}>Select customer</option>
+                            {customerTaxProfiles.map(customer => (
+                                <option key={customer.id} value={customer.id}>
+                                    {customer.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="row">
+                        <div className="col-md-3">
+                            <strong>Subtotal:</strong> {taxSummary.subtotal.toFixed(2)}
+                        </div>
+                        <div className="col-md-3">
+                            <strong>Tax Rate:</strong> {taxSummary.taxRate}%
+                        </div>
+                        <div className="col-md-3">
+                            <strong>Tax Amount:</strong> {taxSummary.taxAmount.toFixed(2)}
+                        </div>
+                        <div className="col-md-3">
+                            <strong>Total incl. Tax:</strong> {taxSummary.total.toFixed(2)}
+                        </div>
                     </div>
                 </div>
             </div>

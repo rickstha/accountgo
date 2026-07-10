@@ -9,8 +9,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using Core.Domain.TaxSystem;
 
-namespace Core.Domain_
+namespace Core.Domain
 {
    [Table("ItemTaxGroup")]
    public partial class ItemTaxGroup : BaseEntity

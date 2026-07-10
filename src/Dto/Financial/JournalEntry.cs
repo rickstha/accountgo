@@ -47,7 +47,7 @@ namespace Dto.Financial
             decimal sum= 0;
             foreach(var entry in JournalEntryLines){
                 if(entry.DrCr == 3)
-                sum+entry.Amount.GetValueOrDefault();
+                sum += entry.Amount.GetValueOrDefault();
             }
             return sum;
         }

@@ -43,7 +43,7 @@ namespace Infrastructure.AssemblyLoader
                 Console.WriteLine(ex.Message);
             }
 
-            return (modulesAssemblies, pluginAsse mblies);
+            return (modulesAssemblies, pluginAssemblies);
         }
     }
 }

@@ -5,7 +5,6 @@ using Core.Domain.Sales;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Core.Domain.TaxSystem;
 using Core.Domain;
 
 namespace Services.TaxSystem
@@ -253,7 +252,7 @@ namespace Services.TaxSystem
         /// <param name="itemId">Item Id</param>
         /// <param name="partyId">Party Id</param>
         /// <returns>Taxes</returns>
-        public IEnumerable<Core.Domain.TaxSystem.Tax> GetIntersectionTaxes(int itemId, int partyId)
+        public IEnumerable<Tax> GetIntersectionTaxes(int itemId, int partyId)
         {
             ICollection<TaxGroupTax> partyTaxes = null;
             ICollection<ItemTaxGroupTax> itemTaxes = null;

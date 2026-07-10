@@ -10,7 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Core.Domain_
+namespace Core.Domain
 {
    [Table("TaxGroup")]
    public partial class TaxGroup : BaseEntity

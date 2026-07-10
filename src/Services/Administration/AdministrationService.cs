@@ -11,7 +11,6 @@ using Core.Domain;
 using Core.Domain.Auditing;
 using Core.Domain.Financials;
 using Core.Domain.Security;
-using Core.Domain.TaxSystem;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -103,6 +102,11 @@ namespace Services.Administration
             }
         }
 
+        public Company GetCompanyById(int id)
+        {
+            return _company.GetById(id);
+        }
+
         public Company GetDefaultCompany()
         {
             return _company.Table.ToList().FirstOrDefault();
@@ -164,4 +168,5 @@ namespace Services.Administration
         }
 
         //main extra code for the main aggrement
-        
+    }
+}

@@ -180,6 +180,27 @@ namespace Api.Controllers
         // USERS
         // =========================================
 
+    // user count
+        [HttpGet("auditlogs")]
+        public IActionResult AuditLogs()
+        {
+            var auditLogs = _adminService.AuditLogs();
+
+            var auditLogsDto = auditLogs.Select(log => new AuditLog
+            {
+                Id = log.Id,
+                UserName = log.UserName, 
+                TableName = log.TableName,
+                RecordId = log.RecordId,
+                FieldName = log.FieldName,
+                
+            }).ToList();
+
+            return Ok(auditLogsDto);
+        }
+
+           // user count end
+
         [HttpGet("users")]
         public IActionResult Users()
         {
@@ -205,11 +226,30 @@ namespace Api.Controllers
                     {
                         var roleDto = new Role
                         {
-                            Id = role.Id,
+                            Id = role.SecurityRoleId,
                             Name = role.SecurityRole?.Name,
                             DisplayName = role.SecurityRole?.DisplayName,
+                            SysAdmin = role.SecurityRole?.SysAdmin ?? false,
                             Permissions = new List<Permission>()
                         };
+
+                        if (role.SecurityRole?.Permissions != null)
+                        {
+                            foreach (var permission in role.SecurityRole.Permissions)
+                            {
+                                var permissionDto = new Permission
+                                {
+                                    Id = permission.SecurityPermissionId,
+                                    Name = permission.SecurityPermission?.Name,
+                                    Group = new Group
+                                    {
+                                        Name = permission.SecurityPermission?.Group?.Name
+                                    }
+                                };
+
+                                roleDto.Permissions.Add(permissionDto);
+                            }
+                        }
 
                         userDto.Roles.Add(roleDto);
                     }
@@ -454,7 +494,7 @@ namespace Api.Controllers
                 }
                 else
                 {
-                    company = _adminService.GetDefaultCompany();
+                    company = _adminService.GetCompanyById(companyDto.Id);
 
                     if (company == null)
                     {

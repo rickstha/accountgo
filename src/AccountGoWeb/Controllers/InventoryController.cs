@@ -94,7 +94,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddItem(Item itemModel){
+        public async Task<IActionResult> AddItem(Item itemModel){
             ViewBag.PageContentHeader = "New Item";
 
             if (ModelState.IsValid) {
@@ -102,7 +102,7 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(itemModel);
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                var response = Post("Inventory/SaveItem", content);
+                var response = await Post("Inventory/SaveItem", content);
                 _logger.LogInformation("Response: " + response);
                 if (response.IsSuccessStatusCode)
                     return RedirectToAction("Items");
@@ -112,7 +112,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
-        public IActionResult SaveItem(Item itemModel)
+        public async Task<IActionResult> SaveItem(Item itemModel)
         {
             if (ModelState.IsValid)
             {
@@ -120,7 +120,7 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
-                var response = PostAsync("inventory/saveitem", content);
+                var response = await Post("inventory/saveitem", content);
 
                 return RedirectToAction("Index");
             }

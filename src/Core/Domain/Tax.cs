@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Core.Domain_
+namespace Core.Domain
 {
    [Table("Tax")]
    public partial class Tax : BaseEntity

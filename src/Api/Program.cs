@@ -13,20 +13,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers()
-.AddNewtonsoftJson(
-    options =>
-        {
-            options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver();
-            options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-        }
-    );
-
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver();
+        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+    });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var configuredConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(configuredConnectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+}
 
 // These environment variables can be overriden from launchSettings.json.
 string dbServer = System.Environment.GetEnvironmentVariable("DBSERVER") ?? "localhost,1444";
@@ -34,15 +34,19 @@ string dbUserID = System.Environment.GetEnvironmentVariable("DBUSERID") ?? "sa";
 string dbUserPassword = System.Environment.GetEnvironmentVariable("DBPASSWORD") ?? "SqlPassword!";
 string dbName = System.Environment.GetEnvironmentVariable("DBNAME") ?? "accountgodb";
 
-connectionString = String.Format(builder.Configuration.GetConnectionString("DefaultConnection")!, dbServer, dbUserID, dbUserPassword, dbName);
+var connectionString = configuredConnectionString.Contains("{0}", StringComparison.Ordinal)
+    ? string.Format(configuredConnectionString, dbServer, dbUserID, dbUserPassword, dbName)
+    : configuredConnectionString;
 
 System.Console.WriteLine("DB Connection String: " + connectionString);
 
 builder.Services
-    //.AddEntityFrameworkSqlServer()
     .AddDefaultTokenProviders()
-    .AddDbContext<ApiDbContext>(options => options.UseSqlServer(connectionString))
-    .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery) // Add this line
+    .AddDbContext<ApiDbContext>(options =>
+    {
+        options.UseSqlServer(connectionString);
+        options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+    })
     .AddDbContext<ApplicationIdentityDbContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services
@@ -50,31 +54,16 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationIdentityDbContext>()
     .AddDefaultTokenProviders();
 
-
-builder.Services.AddCors(o => o.AddPolicy("AllowAll", builder =>
-{
-    builder
-    .AllowAnyOrigin()
-    .AllowAnyMethod()
-    .AllowAnyHeader();
-    //for footer and other items use only
-    .AllowAnyFooter();
-    AllowAll();
-}));
-
-var AllowAllOrigins = "AllowAll";
+var allowAllOrigins = "AllowAll";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(name: AllowAllOrigins,
-                      policy =>
-                      {
-                          policy.AllowAnyOrigin()
-                                .AllowAnyMethod()
-                                .AllowAnyHeader();
-                                .AllowAnyFooter();
-                      });
+    options.AddPolicy(allowAllOrigins, policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
 });
-
 
 // generic repository
 builder.Services.AddScoped(typeof(Core.Data.IRepository<>), typeof(EfRepository<>));

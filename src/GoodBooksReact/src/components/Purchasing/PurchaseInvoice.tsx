@@ -563,18 +563,6 @@ class PurchaseInvoiceLines extends React.Component {
                                             />
                                         </td>
 
-                                        {/* main input files added */}
-
-                                        <td>
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                name={i.toString()}
-                                                value={line.measurementId.toString()}
-                                                onChange={this.onChangeCode}
-                                            />
-                                        </td>
-
                                         <td>
                                             <input
                                                 type="text"

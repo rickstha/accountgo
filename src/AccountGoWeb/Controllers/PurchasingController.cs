@@ -306,14 +306,14 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
-        public IActionResult Payment(Models.Purchasing.Payment model)
+        public async Task<IActionResult> Payment(Models.Purchasing.Payment model)
         {
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                var response = Post("purchasing/savepayment", content);
+                var response = await Post("purchasing/savepayment", content);
                 if (response.IsSuccessStatusCode)
                     return RedirectToAction("purchaseinvoices");
             }

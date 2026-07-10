@@ -135,8 +135,8 @@ class PurchaseOrderLines extends React.Component {
     onFocusOutItem(e: any, isNew: boolean, i: any) {
         let isExisting = false;
         for (let x = 0; x < store.commonStore.items.length; x++) {
-            const lineItem = store.commonStore.items[x] as PurchaseOrderLine;
-            if (lineItem.code == i.target.value) {
+            const lineItem = store.commonStore.items[x] as any;
+            if (lineItem.code === i.target.value) {
                 isExisting = true;
                 if (isNew) {
                     (document.getElementById("optNewItemId") as HTMLInputElement).value = lineItem.id.toString();
@@ -155,27 +155,24 @@ class PurchaseOrderLines extends React.Component {
             }
         }
 
-        if (!isExisting)
-
+        if (!isExisting) {
             if (isNew) {
-                (document.getElementById("optNewItemId") as HTMLInputElement).value = "";
-                (document.getElementById("optNewMeasurementId") as HTMLInputElement).value = "";
-                (document.getElementById("txtNewAmount") as HTMLInputElement).value = "";
-                (document.getElementById("txtNewQuantity") as HTMLInputElement).value = "";
-                document.getElementById("txtNewCode")!.style.borderColor = '#FF0000';
-                //document.getElementById("txtNewCode").appendChild(span);
-                // document.getElementById("txtNewCode").style.border = 'solid';
+                const itemIdElement = document.getElementById("optNewItemId") as HTMLInputElement | null;
+                const measurementIdElement = document.getElementById("optNewMeasurementId") as HTMLInputElement | null;
+                const amountElement = document.getElementById("txtNewAmount") as HTMLInputElement | null;
+                const quantityElement = document.getElementById("txtNewQuantity") as HTMLInputElement | null;
+                const codeElement = document.getElementById("txtNewCode") as HTMLInputElement | null;
+                
+                if (itemIdElement) itemIdElement.value = "";
+                if (measurementIdElement) measurementIdElement.value = "";
+                if (amountElement) amountElement.value = "";
+                if (quantityElement) quantityElement.value = "";
+                if (codeElement) codeElement.style.borderColor = '#FF0000';
             }
             else {
-                //store.updateLineItem(e, "itemId", "");
-                //store.updateLineItem(e, "measurementId", "");
-                //store.updateLineItem(e, "amount", "");
-                //store.updateLineItem(e, "quantity", "");
                 i.target.style.borderColor = "red";
-                //i.target.appendChild(span);
-                // i.target.style.border = "solid";
-
             }
+        }
 
     }   
 
@@ -284,8 +281,8 @@ class EditButton extends React.Component {
     }
     render() {
         return (
-            <a href="#" id="linkEdit" onClick={this.onClickEditButton}
-                className={store.purchaseOrder.statusId == 0 && !store.editMode
+            <a href="#" id="linkEdit" onClick={this.onClickEditButton.bind(this)}
+                className={store.purchaseOrder.statusId === 0 && !store.editMode
                     ? "btn"
                     : "btn inactiveLink"}>
                 <i className="fa fa-edit"></i>

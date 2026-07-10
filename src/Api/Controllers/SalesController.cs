@@ -226,7 +226,8 @@ namespace Api.Controllers
                         OrderDate = salesOrder.Date,
                         ReferenceNo = salesOrder.ReferenceNo,
                         StatusId = (int)salesOrder.Status.GetValueOrDefault(),
-                        No = salesOrder.No
+                        No = salesOrder.No,
+                        SalesOrderLines = new List<Dto.Sales.SalesOrderLine>()
                     };
 
                     foreach (var line in salesOrder.SalesOrderLines ?? new List<Core.Domain.Sales.SalesOrderLine>())
@@ -612,10 +613,10 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                    errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -736,10 +737,10 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                    errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -765,10 +766,10 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                    errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -793,14 +794,13 @@ namespace Api.Controllers
                         salesOrder.CustomerId = salesInvoiceDto.CustomerId;
                         salesOrder.ReferenceNo = salesInvoiceDto.ReferenceNo;
                         salesOrder.Status = SalesOrderStatus.FullyInvoiced;
+                        salesOrder.MeasurementId = SalesOrderStatus.MeasurementId;
                     }
                     else
                     {
-                        // else,  your invoice is created from existing (open) sales order.
                         salesOrder = _salesService.GetSalesOrderById(salesInvoiceDto.FromSalesOrderId.GetValueOrDefault());
                     }
 
-                    // populate invoice header
                     salesInvoice = new Core.Domain.Sales.SalesInvoiceHeader();
                     salesInvoice.CustomerId = salesInvoiceDto.CustomerId;
                     salesInvoice.Date = salesInvoiceDto.InvoiceDate;
@@ -819,25 +819,24 @@ namespace Api.Controllers
                         salesInvoiceLine.MeasurementId = line.MeasurementId.GetValueOrDefault();
                         salesInvoice.SalesInvoiceLines.Add(salesInvoiceLine);
 
-                        // line.Id here is referring to SalesOrderLineId. It is pre-populated when you create a new sales invoice from sales order.
-                        if (line.Id != 0)
+                        if (line.Id != 0 && salesOrder != null)
                         {
                             salesInvoiceLine.SalesOrderLineId = line.Id;
                         }
-                        else
+                        else if (salesOrder != null)
                         {
-                            // if you reach here, this line item is newly added to invoice which is not originally in sales order. create correspondin orderline and add to sales order.
                             var salesOrderLine = new Core.Domain.Sales.SalesOrderLine();
                             salesOrderLine.Amount = line.Amount.GetValueOrDefault();
                             salesOrderLine.Discount = line.Discount.GetValueOrDefault();
                             salesOrderLine.Quantity = line.Quantity.GetValueOrDefault();
                             salesOrderLine.ItemId = line.ItemId.GetValueOrDefault();
                             salesOrderLine.MeasurementId = line.MeasurementId.GetValueOrDefault();
-                            salesInvoiceLine.SalesOrderLine = salesOrderLine;
 
+                            salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
                             salesOrder.SalesOrderLines.Add(salesOrderLine);
 
-                            salesInvoiceLine.SalesOrderLine = salesOrderLine; // map invoice line to newly added orderline
+                            salesInvoiceLine.SalesOrderLine = salesOrderLine;
+                            salesInvoiceLine.SalesOrderLineId = salesOrderLine.Id;
                         }
                     }
                 }
@@ -951,10 +950,10 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                    errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -1062,10 +1061,10 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                    errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
 
                     return new BadRequestObjectResult(errors);
                 }
@@ -1130,10 +1129,10 @@ namespace Api.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    errors = new string[ModelState.ErrorCount];
-                    foreach (var val in ModelState.Values)
-                        for (int i = 0; i < ModelState.ErrorCount; i++)
-                            errors[i] = val.Errors[i].ErrorMessage;
+                    errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
                     return new BadRequestObjectResult(errors);
                 }
 

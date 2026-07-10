@@ -20,7 +20,7 @@
         {
             <tr>
            
-            <td>@Html.ActionLink((string)string.Format("{1}",asset.AccountCode),"account",new {id=assets.AccountId})</td>
+            <td>@Html.ActionLink((string)string.Format("{1}",asset.AccountCode),"account",new {id=asset.AccountId})</td>
                 <td>@Html.ActionLink((string)string.Format("{0}", asset.AccountCode), "account", new { id = asset.AccountId })</td>
                 <td>@asset.AccountName</td>
                 <td style="text-align: right">@asset.Amount</td>
@@ -45,7 +45,7 @@
         {
             <tr>
            
-            <td>@Html.ActionLink((string)string.Format("{1}",asset.AccountCode),"account",new {id=assets.AccountId})</td>
+            <td>@Html.ActionLink((string)string.Format("{1}",asset.AccountCode),"account",new {id=asset.AccountId})</td>
                 <td>@Html.ActionLink((string)string.Format("{0}", asset.AccountCode), "account", new { id = asset.AccountId })</td>
                 <td>@asset.AccountName</td>
                 <td style="text-align: right">@asset.Amount</td>

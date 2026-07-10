@@ -8,7 +8,6 @@
 
 using Core.Domain;
 using Core.Domain.Financials;
-using Core.Domain.TaxSystem;
 using System;
 using System.Collections.Generic;
 

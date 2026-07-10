@@ -88,6 +88,22 @@ namespace Api.Controllers
                 item.InventoryAdjustmentAccountId = itemDto.InventoryAdjustmentAccountId;
                 item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
                 item.PreferredVendorId = itemDto.PreferredVendorId;
+                // adding new IDs... this might use in future
+                item.MeasurementId = itemDto.ItemMeasurementId;
+                item.Quanitity = itemDto.ItemQuantity;
+                item.Discount = itemDto.ItemDsicount;
+
+                item.Code = itemsDto.ItemCode;
+                item.Description = itemsDto.ItemDescription;
+                item.ItemTaxGroup = itemsDto.ItemItemTaxGroup;
+                item.PurchaseMeasurement=itemsDto.ItemPurchaseMeasurement;
+                item.Cost=itemsDto.ItemCost;
+                item.Price=itemsDto.ItemPrice;
+            
+                item.ItemMeasurementId=itemsDto.ItemItemMeasurementId;
+                item.ItemQuantity=itemsDto.ItemItemQuantity;
+                item.ItemDsicount=itemsDto.ItemItemDiscount;
+
 
                 if (isNew)
                 {
@@ -140,6 +156,9 @@ namespace Api.Controllers
                         Cost = item.Cost,
                         Price = item.Price,
                         QuantityOnHand = item.ComputeQuantityOnHand()
+                        MeasurementId = item.ItemMeasurementId;
+                        Quanitity = item.ItemQuantity;
+                        Discount = item.ItemDsicount;
                     });
                 }
 

@@ -1,8 +1,11 @@
-﻿namespace Dto.Financial
+﻿using System;
+using System.Collections.Generic;
+
+namespace Dto.Financial
 {
     public class PaymentTerm : BaseDto
     {
-       public new int? Id { get; set; }
+        public new int? Id { get; set; }
         public int AccountId { get; set; }
         public int CurrencyId { get; set; }
         public string DocumentType { get; set; }
@@ -13,14 +16,12 @@
         public decimal? Debit { get; set; }
         public decimal? Credit { get; set; }
         public decimal? MainTransition { get; set; }
-
-
         public IList<MasterGeneralLedger> ChildMasterGeneralLedger { get; set; }
-        public MasterGeneralLedger()
+        public int? GroupId { get; set; }
+
+        public PaymentTerm()
         {
             ChildMasterGeneralLedger = new List<MasterGeneralLedger>();
         }
-
-        public int? GroupId { get; set; }  
     }
 }

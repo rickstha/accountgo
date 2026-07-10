@@ -25,6 +25,7 @@ namespace Core.Domain.Items
         public int? SmallestMeasurementId { get; set; }
         public int? SellMeasurementId { get; set; }
         public int? PurchaseMeasurementId { get; set; }
+        public int? CustomerDetailMain { get; set; }
         public int? PreferredVendorId { get; set; }
         public int? ItemTaxGroupId { get; set; }
         public int? SalesAccountId { get; set; }
