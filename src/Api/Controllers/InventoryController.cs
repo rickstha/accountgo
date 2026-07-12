@@ -103,6 +103,9 @@ namespace Api.Controllers
                 item.ItemMeasurementId=itemsDto.ItemItemMeasurementId;
                 item.ItemQuantity=itemsDto.ItemItemQuantity;
                 item.ItemDsicount=itemsDto.ItemItemDiscount;
+                item.ItemPurchaseItems = itemsDto.ItemItemPurchaseItems;
+                item.ItemSaleItems= itemsDto.ItemItemSaleItems;
+                
 
 
                 if (isNew)

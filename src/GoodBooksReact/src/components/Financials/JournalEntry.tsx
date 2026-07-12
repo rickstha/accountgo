@@ -28,6 +28,11 @@ const customerTaxProfiles: CustomerTaxProfile[] = [
     { id: 3, name: "Customer C", taxRate: 18 }
 ];
 
+// Smallest currency unit we care about when comparing totals.
+// Floating point sums (e.g. 0.1 + 0.2) can differ by tiny fractions,
+// so we treat differences smaller than this as "equal".
+const EPSILON = 0.01;
+
 const JournalEntry: React.FC = () => {
     const [entry, setEntry] = useState<JournalEntryModel>({
         journalDate: new Date().toISOString().substring(0, 10),
@@ -129,13 +134,18 @@ const JournalEntry: React.FC = () => {
         .filter(x => x.drcr === "CR")
         .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
 
+    // Compare with a small tolerance instead of strict equality, since
+    // floating-point sums can differ by tiny fractions even when the
+    // entry is actually balanced.
+    const isBalanced = Math.abs(totalDebit - totalCredit) < EPSILON;
+
     const saveJournal = () => {
         const errors: string[] = [];
 
         if (lines.length === 0)
             errors.push("At least one line item is required.");
 
-        if (totalDebit !== totalCredit)
+        if (!isBalanced)
             errors.push("Debit and Credit totals must match.");
 
         if (errors.length > 0) {
@@ -152,7 +162,7 @@ const JournalEntry: React.FC = () => {
     };
 
     const postJournal = () => {
-        if (totalDebit !== totalCredit) {
+        if (!isBalanced) {
             alert("Journal is not balanced.");
             return;
         }
@@ -457,11 +467,11 @@ const JournalEntry: React.FC = () => {
 
                     <div className="row">
                         <div className="col">
-                            <strong>Total Debit:</strong> {totalDebit}
+                            <strong>Total Debit:</strong> {totalDebit.toFixed(2)}
                         </div>
 
                         <div className="col">
-                            <strong>Total Credit:</strong> {totalCredit}
+                            <strong>Total Credit:</strong> {totalCredit.toFixed(2)}
                         </div>
                     </div>
                 </div>
