@@ -794,7 +794,9 @@ namespace Api.Controllers
                         salesOrder.CustomerId = salesInvoiceDto.CustomerId;
                         salesOrder.ReferenceNo = salesInvoiceDto.ReferenceNo;
                         salesOrder.Status = SalesOrderStatus.FullyInvoiced;
-                        salesOrder.MeasurementId = SalesOrderStatus.MeasurementId;
+                        // NOTE: removed invalid line `salesOrder.MeasurementId = SalesOrderStatus.MeasurementId;`
+                        // SalesOrderStatus is an enum and has no "MeasurementId" member — this did not compile.
+                        // Measurement belongs on each SalesOrderLine, not on the header, and is already set below.
                     }
                     else
                     {
@@ -1097,6 +1099,14 @@ namespace Api.Controllers
                 salesReceipt.Amount = amount.Value;
 
                 var customer = _salesService.GetCustomerById(customerId.Value);
+
+                // NOTE: added null-check. GetCustomerById can return null for an invalid id,
+                // and dereferencing it directly below would throw a NullReferenceException.
+                if (customer == null)
+                {
+                    throw new Exception("Invalid customer.");
+                }
+
                 if (customer.CustomerAdvancesAccountId != accountToCreditId.Value)
                     throw new Exception("Invalid account.");
 
@@ -1198,7 +1208,9 @@ namespace Api.Controllers
             {
                 var sales = new MonthlySales();
                 var month = i + "/1/" + DateTime.Now.Year;
-                sales.Month = Convert.ToDateTime(month).ToString("MMMMM");
+                // NOTE: was "MMMMM" (5 M's) which throws FormatException at runtime.
+                // .NET custom date format only supports up to 4 consecutive 'M's ("MMMM" = full month name).
+                sales.Month = Convert.ToDateTime(month).ToString("MMMM");
                 sales.Amount = totalSales.Where(a => a.Month == i.ToString()).Select(x => x.Amount).FirstOrDefault();
                 finalmonthlySalesDto.Add(sales);
             }
