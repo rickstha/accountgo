@@ -88,25 +88,22 @@ namespace Api.Controllers
                 item.InventoryAdjustmentAccountId = itemDto.InventoryAdjustmentAccountId;
                 item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
                 item.PreferredVendorId = itemDto.PreferredVendorId;
-                // adding new IDs... this might use in future
-                item.MeasurementId = itemDto.ItemMeasurementId;
-                item.Quanitity = itemDto.ItemQuantity;
-                item.Discount = itemDto.ItemDsicount;
 
-                item.Code = itemsDto.ItemCode;
-                item.Description = itemsDto.ItemDescription;
-                item.ItemTaxGroup = itemsDto.ItemItemTaxGroup;
-                item.PurchaseMeasurement=itemsDto.ItemPurchaseMeasurement;
-                item.Cost=itemsDto.ItemCost;
-                item.Price=itemsDto.ItemPrice;
-            
-                item.ItemMeasurementId=itemsDto.ItemItemMeasurementId;
-                item.ItemQuantity=itemsDto.ItemItemQuantity;
-                item.ItemDsicount=itemsDto.ItemItemDiscount;
-                item.ItemPurchaseItems = itemsDto.ItemItemPurchaseItems;
-                item.ItemSaleItems= itemsDto.ItemItemSaleItems;
-                
-
+                // NOTE: removed two blocks that used to sit here:
+                //   1. item.MeasurementId / item.Quanitity / item.Discount = itemDto.ItemMeasurementId / .ItemQuantity / .ItemDsicount
+                //   2. item.Code = itemsDto.ItemCode; ... item.ItemSaleItems = itemsDto.ItemItemSaleItems;
+                // Block 2 referenced `itemsDto`, a variable that only exists in the unrelated
+                // Items() method below — this did not compile (CS0103: the name 'itemsDto'
+                // does not exist in the current context). It also duplicated fields
+                // (Code, Description, Cost, Price, PurchaseMeasurementId, ItemTaxGroupId)
+                // that are already set correctly above from `itemDto`.
+                // Block 1 referenced properties (Quanitity, ItemDsicount, MeasurementId)
+                // that don't appear anywhere else in this file's DTO/domain usage
+                // (e.g. the Item(int id) GET endpoint below has no such fields) and looked
+                // like unused/speculative leftovers rather than real requirements.
+                // If a real "quantity/discount/measurement" field is actually needed on
+                // save, it should be added back deliberately with a confirmed DTO/domain
+                // property name, not copy-pasted from another method's variable.
 
                 if (isNew)
                 {
@@ -149,6 +146,19 @@ namespace Api.Controllers
 
                 foreach (var item in items)
                 {
+                    // NOTE: this object initializer previously ended with:
+                    //   QuantityOnHand = item.ComputeQuantityOnHand()
+                    //   MeasurementId = item.ItemMeasurementId;
+                    //   Quanitity = item.ItemQuantity;
+                    //   Discount = item.ItemDsicount;
+                    // — missing comma after ComputeQuantityOnHand(), and semicolons
+                    // used instead of commas inside a `{ }` object initializer, which
+                    // is not valid C# syntax (object initializers are comma-separated
+                    // Property = value pairs, not statements). This did not compile.
+                    // The trailing MeasurementId/Quanitity/Discount properties also
+                    // don't appear anywhere else in this controller's DTO usage, so
+                    // they were dropped rather than guessed at; the shape below now
+                    // matches the fields used consistently elsewhere in this file.
                     itemsDto.Add(new Item
                     {
                         Id = item.Id,
@@ -159,9 +169,6 @@ namespace Api.Controllers
                         Cost = item.Cost,
                         Price = item.Price,
                         QuantityOnHand = item.ComputeQuantityOnHand()
-                        MeasurementId = item.ItemMeasurementId;
-                        Quanitity = item.ItemQuantity;
-                        Discount = item.ItemDsicount;
                     });
                 }
 

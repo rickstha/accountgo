@@ -61,11 +61,27 @@ const JournalEntry: React.FC = () => {
         total: 0
     });
 
+    // FIX: hoisted above the tax useEffect (previously declared further down,
+    // after render, so the effect couldn't use them and instead summed every
+    // line indiscriminately — see note below).
+    const totalDebit = lines
+        .filter(x => x.drcr === "DR")
+        .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+
+    const totalCredit = lines
+        .filter(x => x.drcr === "CR")
+        .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+
     useEffect(() => {
-        const subtotal = lines.reduce(
-            (sum, line) => sum + (Number(line.amount) || 0),
-            0
-        );
+        // FIX: the subtotal used to be `lines.reduce((sum, line) => sum + amount, 0)`,
+        // which added up BOTH the debit side and the credit side of the entry.
+        // In double-entry bookkeeping a balanced entry always has
+        // totalDebit === totalCredit, so summing every line double-counted the
+        // real transaction amount (e.g. "DR Expense 100 / CR Cash 100" produced
+        // a subtotal of 200 instead of 100), inflating tax by 2x.
+        // The actual transaction amount is one side of the entry — we use the
+        // debit total here.
+        const subtotal = totalDebit;
 
         const selectedCustomer = customerTaxProfiles.find(
             customer => customer.id === selectedCustomerId
@@ -79,7 +95,7 @@ const JournalEntry: React.FC = () => {
             taxAmount,
             total: subtotal + taxAmount
         });
-    }, [lines, selectedCustomerId]);
+    }, [totalDebit, selectedCustomerId]);
 
     const updateLine = (
         index: number,
@@ -125,14 +141,6 @@ const JournalEntry: React.FC = () => {
 
         setValidationErrors([]);
     };
-
-    const totalDebit = lines
-        .filter(x => x.drcr === "DR")
-        .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-
-    const totalCredit = lines
-        .filter(x => x.drcr === "CR")
-        .reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
 
     // Compare with a small tolerance instead of strict equality, since
     // floating-point sums can differ by tiny fractions even when the
@@ -255,9 +263,18 @@ const JournalEntry: React.FC = () => {
 
                     <div className="form-group">
                         <label>Posted</label>
+                        {/*
+                          FIX: was `readOnly` on a checkbox, which does NOT stop a
+                          user from clicking/toggling it in the browser (readOnly
+                          only affects text-type inputs). The box would visually
+                          flip and then snap back on re-render, which is confusing
+                          and not truly "read only". `disabled` correctly prevents
+                          interaction and shows the standard greyed-out state.
+                        */}
                         <input
                             type="checkbox"
                             checked={entry.posted}
+                            disabled
                             readOnly
                         />
                     </div>
@@ -343,7 +360,7 @@ const JournalEntry: React.FC = () => {
                                                 updateLine(
                                                     index,
                                                     "drcr",
-                                                    e.target.value
+                                                    e.target.value as "DR" | "CR"
                                                 )
                                             }
                                         >

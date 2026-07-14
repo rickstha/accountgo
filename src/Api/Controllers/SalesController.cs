@@ -908,8 +908,17 @@ namespace Api.Controllers
                                 }
 
                                 salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
-                                salesOrder.SalesOrderLines.Add(salesOrderLine);
                             }
+
+                            // FIX: this used to sit inside the "if (salesOrder == null)" block above,
+                            // which only runs for the FIRST newly-added invoice line in the loop.
+                            // On the 2nd, 3rd, etc. new lines in the same request, `salesOrder` was
+                            // already non-null (resolved on the first iteration), so this Add() never
+                            // ran for them — their SalesOrderLine was created and linked to the invoice
+                            // line, but never added to salesOrder.SalesOrderLines, leaving it orphaned
+                            // from the order header's collection. It must run for every new line,
+                            // while salesOrder itself is still only resolved/created once.
+                            salesOrder.SalesOrderLines.Add(salesOrderLine);
 
                             salesInvoiceLine.SalesOrderLine = salesOrderLine; // map invoice line to newly added orderline
                         }
