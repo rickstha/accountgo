@@ -89,6 +89,8 @@ namespace Api.Controllers
                 item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
                 item.PreferredVendorId = itemDto.PreferredVendorId;
 
+
+
                 // NOTE: removed two blocks that used to sit here:
                 //   1. item.MeasurementId / item.Quanitity / item.Discount = itemDto.ItemMeasurementId / .ItemQuantity / .ItemDsicount
                 //   2. item.Code = itemsDto.ItemCode; ... item.ItemSaleItems = itemsDto.ItemItemSaleItems;
@@ -146,19 +148,7 @@ namespace Api.Controllers
 
                 foreach (var item in items)
                 {
-                    // NOTE: this object initializer previously ended with:
-                    //   QuantityOnHand = item.ComputeQuantityOnHand()
-                    //   MeasurementId = item.ItemMeasurementId;
-                    //   Quanitity = item.ItemQuantity;
-                    //   Discount = item.ItemDsicount;
-                    // — missing comma after ComputeQuantityOnHand(), and semicolons
-                    // used instead of commas inside a `{ }` object initializer, which
-                    // is not valid C# syntax (object initializers are comma-separated
-                    // Property = value pairs, not statements). This did not compile.
-                    // The trailing MeasurementId/Quanitity/Discount properties also
-                    // don't appear anywhere else in this controller's DTO usage, so
-                    // they were dropped rather than guessed at; the shape below now
-                    // matches the fields used consistently elsewhere in this file.
+                    
                     itemsDto.Add(new Item
                     {
                         Id = item.Id,
@@ -168,12 +158,23 @@ namespace Api.Controllers
                         Measurement = item.PurchaseMeasurement?.Description ?? "",
                         Cost = item.Cost,
                         Price = item.Price,
-                        QuantityOnHand = item.ComputeQuantityOnHand()
+                        QuantityOnHand = item.ComputeQuantityOnHand(),
+                        ItemCategoryId= item.ComputeQuantityOnHand(),
+                        SmallestMeasurementId = item.SmallestMeasurementId,
+                        SellMeasurementId = item.SellMeasurementId,
+                        PurchaseMeasurementId = item.PurchaseMeasurementId,
+                        PreferredVendorId = item.PreferredVendorId,
+                        ItemTaxGroupId =item.ItemTaxGroupId,
+                        SalesAccountId = item.salesAccount?.Sale ?? "",
+                        InventoryAccountId = item.InventoryAccountId,
+                        CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccount?.Good ?? "",
+                        InventoryAdjustmentAccountId = item.InventoryAdjustment?.Inventory?? ""
+
                     });
                 }
 
                 return Ok(itemsDto);
-            }
+            }   
             catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Error while getting items");
