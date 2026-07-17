@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace AccountGoWeb.Controllers
 {
@@ -25,30 +29,24 @@ namespace AccountGoWeb.Controllers
             return View();
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> Accounts()
+        public async Task<IActionResult> Accounts()
         {
             ViewBag.PageContentHeader = "Chart of Accounts";
 
-            using (var client = new System.Net.Http.HttpClient())
+            var responseJson = await GetAsync<string>("financials/accounts");
+            if (responseJson == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                _logger.LogInformation($"+++++++++++++++ baseUri={baseUri} +++++++++++++++");
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "financials/accounts");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load chart of accounts.");
+                return View();
             }
 
-            return View();
+            return View(model: responseJson);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> Account(int? id = null)
+        public async Task<IActionResult> Account(int? id = null)
         {
-            Dto.Financial.Account? accountModel = null;
+            Dto.Financial.Account accountModel;
+
             if (id == null)
             {
                 accountModel = new Dto.Financial.Account();
@@ -62,137 +60,95 @@ namespace AccountGoWeb.Controllers
             return View(accountModel);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> JournalEntries()
+        public async Task<IActionResult> JournalEntries()
         {
             ViewBag.PageContentHeader = "Journal Entries";
 
-            using (var client = new System.Net.Http.HttpClient())
+            var responseJson = await GetAsync<string>("financials/journalentries");
+            if (responseJson == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "financials/journalentries");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load journal entries.");
+                return View();
             }
 
-            return View();
+            return View(model: responseJson);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> GeneralLedger()
+        public async Task<IActionResult> GeneralLedger()
         {
             ViewBag.PageContentHeader = "General Ledger";
 
-            using (var client = new System.Net.Http.HttpClient())
+            var responseJson = await GetAsync<string>("financials/generalledger");
+            if (responseJson == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "financials/generalledger");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load general ledger.");
+                return View();
             }
 
-            return View();
+            return View(model: responseJson);
         }
 
-        // new document mainClient logic start
-        public async System.Threading.Tasks.Task<IActionResult> MainClient()
+        public async Task<IActionResult> MainClient()
         {
             ViewBag.PageContentHeader = "Main Client";
-            
-            using (var mainClient = new System.Net.Http.HttpClient())
+
+            var responseJson = await GetAsync<string>("financials/mainclient");
+            if (responseJson == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                mainClient.BaseAddress = new System.Uri(baseUri!);
-                mainClient.DefaultRequestHeaders.Accept.Clear();
-                var response = await mainClient.GetAsync(baseUri + "financials/mainclient");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load main client.");
+                return View();
             }
 
-            return View();
+            return View(model: responseJson);
         }
-        // new document mainClient end
 
-        public async System.Threading.Tasks.Task<IActionResult> TrialBalance()
+        public async Task<IActionResult> TrialBalance()
         {
             ViewBag.PageContentHeader = "Trial Balance";
 
-            using (var client = new System.Net.Http.HttpClient())
+            var trialBalanceModel = await GetAsync<List<Models.TrialBalance>>("financials/trialbalance");
+            if (trialBalanceModel == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "financials/trialbalance");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    var trialBalanceModel = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.List<Models.TrialBalance>>(responseJson);
-                    return View(trialBalanceModel);
-                }
+                _logger.LogWarning("Failed to load trial balance.");
+                return View();
             }
 
-            return View();
+            return View(trialBalanceModel);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> BalanceSheet()
+        public async Task<IActionResult> BalanceSheet()
         {
             ViewBag.PageContentHeader = "Balance Sheet";
 
-            using (var client = new System.Net.Http.HttpClient())
+            var balanceSheetModel = await GetAsync<List<Models.BalanceSheet>>("financials/balancesheet");
+            if (balanceSheetModel == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "financials/balancesheet");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    var balanceSheetModel = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.List<Models.BalanceSheet>>(responseJson);
-                    return View(balanceSheetModel);
-                }
+                _logger.LogWarning("Failed to load balance sheet.");
+                return View();
             }
 
-            return View();
+            return View(balanceSheetModel);
         }
 
         public async Task<IActionResult> IncomeStatement()
         {
             ViewBag.PageContentHeader = "Income Statement";
 
-            using (var client = new System.Net.Http.HttpClient())
+            var incomeStatementModel = await GetAsync<List<Models.IncomeStatement>>("financials/incomestatement");
+            if (incomeStatementModel == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "financials/incomestatement");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    var incomeStatementModel = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.List<Models.IncomeStatement>>(responseJson);
-                    return View(incomeStatementModel);
-                }
+                _logger.LogWarning("Failed to load income statement.");
+                return View();
             }
 
-            return View();
+            return View(incomeStatementModel);
         }
 
-        public IActionResult Banks()
+        public async Task<IActionResult> Banks()
         {
             ViewBag.PageContentHeader = "Cash/Banks";
 
-            var banks = GetAsync<IEnumerable<Dto.Financial.Bank>>("financials/cashbanks").Result;
-
+            var banks = await GetAsync<IEnumerable<Dto.Financial.Bank>>("financials/cashbanks");
             return View(banks);
         }
     }
