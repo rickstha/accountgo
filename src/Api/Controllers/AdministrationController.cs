@@ -180,27 +180,6 @@ namespace Api.Controllers
         // USERS
         // =========================================
 
-    // user count
-        [HttpGet("auditlogs")]
-        public IActionResult AuditLogs()
-        {
-            var auditLogs = _adminService.AuditLogs();
-
-            var auditLogsDto = auditLogs.Select(log => new AuditLog
-            {
-                Id = log.Id,
-                UserName = log.UserName, 
-                TableName = log.TableName,
-                RecordId = log.RecordId,
-                FieldName = log.FieldName,
-                
-            }).ToList();
-
-            return Ok(auditLogsDto);
-        }
-
-           // user count end
-
         [HttpGet("users")]
         public IActionResult Users()
         {
