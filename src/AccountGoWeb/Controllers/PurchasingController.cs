@@ -20,7 +20,7 @@ namespace AccountGoWeb.Controllers
         }
 
         public IActionResult PurchaseOrders()
-        {
+
             ViewBag.PageContentHeader = "Purchase Orders";
 
             string purchaseOrders = GetAsync<object>("purchasing/purchaseorders")

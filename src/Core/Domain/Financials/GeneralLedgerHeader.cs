@@ -32,42 +32,42 @@ namespace Core.Domain.Financials
 
         public ICollection<GeneralLedgerLine> Assets()
         {
-            var assets = GeneralLedgerLines.ToList().Where(a => a.Account.AccountClassId == (int)AccountClasses.Assets);
+            var assets = GeneralLedgerLines.ToList().Where(a => a.Account?.AccountClassId == (int)AccountClasses.Assets);
 
             return assets.ToList();
         }
 
         public ICollection<GeneralLedgerLine> Liabilities()
         {
-            var liablities = GeneralLedgerLines.ToList().Where(a => a.Account.AccountClassId == (int)AccountClasses.Liabilities);
+            var liablities = GeneralLedgerLines.ToList().Where(a => a.Account?.AccountClassId == (int)AccountClasses.Liabilities);
 
             return liablities.ToList();
         }
 
         public ICollection<GeneralLedgerLine> Equities()
         {
-            var equities = GeneralLedgerLines.ToList().Where(a => a.Account.AccountClassId == (int)AccountClasses.Equity);
+            var equities = GeneralLedgerLines.ToList().Where(a => a.Account?.AccountClassId == (int)AccountClasses.Equity);
 
             return equities.ToList();
         }
 
         public ICollection<GeneralLedgerLine> Revenues()
         {
-            var revenues = GeneralLedgerLines.ToList().Where(a => a.Account.AccountClassId == (int)AccountClasses.Revenue);
+            var revenues = GeneralLedgerLines.ToList().Where(a => a.Account?.AccountClassId == (int)AccountClasses.Revenue);
 
             return revenues.ToList();
         }
 
         public ICollection<GeneralLedgerLine> Expenses()
         {
-            var expenses = GeneralLedgerLines.ToList().Where(a => a.Account.AccountClassId == (int)AccountClasses.Expense);
+            var expenses = GeneralLedgerLines.ToList().Where(a => a.Account?.AccountClassId == (int)AccountClasses.Expense);
 
             return expenses.ToList();
         }
 
         public bool HaveAtLeastTwoAccountClass()
         {
-            var grouped = this.GeneralLedgerLines.GroupBy(a => a.Account.AccountClassId);
+            var grouped = this.GeneralLedgerLines.GroupBy(a => a.Account?.AccountClassId);
 
             if (grouped.Count() > 1)
                 return true;
@@ -119,7 +119,7 @@ namespace Core.Domain.Financials
         public bool ValidateAssetsEqualsEquities()
         {
             bool isEqual = true;
-            
+
             var assetsAmount = Assets() != null ? Assets().Sum(a => a.Amount) : 0;
             var equitiesAmount = Equities() != null ? Equities().Sum(a => a.Amount) : 0;
 
