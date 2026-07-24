@@ -92,7 +92,7 @@ namespace Api.Controllers
                     Core.Domain.Security.User newUser =
                         new Core.Domain.Security.User
                         {
-                            EmailAddress = username,
+                            EmailAddress = username, 
                             UserName = username,
                             Firstname = firstName,
                             Lastname = lastName

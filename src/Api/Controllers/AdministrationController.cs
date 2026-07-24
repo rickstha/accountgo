@@ -7,6 +7,10 @@ using Services.Inventory;
 using Services.Purchasing;
 using Services.Sales;
 using Services.Security;
+// TODO: adjust these two namespaces to match where IMainCustomerService / ITaxService
+// actually live in your solution — they weren't imported in the original file.
+using Services.MainCustomer;
+using Services.TaxSystem;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +28,6 @@ namespace Api.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly ISecurityService _securityService;
         // for future use backend code
-        private readonly ISalesService _salesService;
         private readonly IMainCustomerService _mainCustomerService;
         private readonly ITaxService _taxService;
 
@@ -35,11 +38,8 @@ namespace Api.Controllers
             IPurchasingService purchasingService,
             IInventoryService inventoryService,
             ISecurityService securityService,
-            ISalesService salesService,
             IMainCustomerService mainCustomerService,
-            ITaxService taxService;
-            
-            )
+            ITaxService taxService)
         {
             _adminService = adminService;
             _financialService = financialService;
@@ -47,10 +47,8 @@ namespace Api.Controllers
             _purchasingService = purchasingService;
             _inventoryService = inventoryService;
             _securityService = securityService;
-            _salesService = salesService;
             _mainCustomerService = mainCustomerService;
             _taxService = taxService;
-
         }
 
         // =========================================
@@ -69,10 +67,8 @@ namespace Api.Controllers
                     _purchasingService,
                     _inventoryService,
                     _securityService,
-                    _salesService,
                     _mainCustomerService,
-                    _taxService
-                    );
+                    _taxService);
 
                 bool success = initializer.Setup();
 
@@ -114,10 +110,8 @@ namespace Api.Controllers
                     _purchasingService,
                     _inventoryService,
                     _securityService,
-                    _salesService,
                     _mainCustomerService,
-                    _taxService
-                    );
+                    _taxService);
 
                 bool success = initializer.Clear();
 
