@@ -11,6 +11,14 @@ using Services.Financial;
 using Dto.Financial;
 using System.Linq;
 using System;
+// TODO: point these at the real namespaces for these "future use" service interfaces —
+// they weren't imported anywhere in the original file.
+using Services.Purchasing.Main;
+using Services.Security;
+using Services.Sales.Common;
+using Services.Administration.PaymentTerms;
+using Services.MainCustomer;
+using Services.TaxSystem;
 
 namespace Api.Controllers
 {
@@ -25,36 +33,40 @@ namespace Api.Controllers
         private readonly IFinancialService _financialService;
 
         // just for future use
-        // private readonly IPurchaseMainServices _purchaseMainServices;
-        // private readonly ILoginServices _loginServices;
-        // private readonly ISignUpServices _signUpServices;
-        // private readonly ICustomerServices _customerServices;
-        // private readonly IPayTermServices _payTermsServices;
+        private readonly IPurchaseMainServices _purchaseMainServices;
+        private readonly ILoginServices _loginServices;
+        private readonly ISignUpServices _signUpServices;
+        private readonly ICustomerServices _customerServices;
+        private readonly IPayTermServices _payTermsServices;
+        private readonly IMainCustomerService _mainCustomerServices;
+        private readonly ITaxService _taxService;
 
         public CommonController(
             ISalesService salesService,
             IAdministrationService administrationService,
             IInventoryService inventoryService,
             IPurchasingService purchasingService,
-            IFinancialService financialService
-            // IPurchaseMainServices purchaseMainServices,
-            // ILoginServices loginServices,
-            // ISignUpServices signUpServices,
-            // ICustomerServices customerServices,
-            // IPayTermServices payTermServices
-            )
+            IFinancialService financialService,
+            IPurchaseMainServices purchaseMainServices,
+            ILoginServices loginServices,
+            ISignUpServices signUpServices,
+            ICustomerServices customerServices,
+            IPayTermServices payTermServices,
+            IMainCustomerService mainCustomerServices,
+            ITaxService taxService)
         {
             _salesService = salesService;
             _administrationService = administrationService;
             _inventoryService = inventoryService;
             _purchasingService = purchasingService;
             _financialService = financialService;
-
-            // _purchaseMainServices = purchaseMainServices;
-            // _loginServices = loginServices;
-            // _signUpServices = signUpServices;
-            // _customerServices = customerServices;
-            // _payTermsServices = payTermServices;
+            _purchaseMainServices = purchaseMainServices;
+            _loginServices = loginServices;
+            _signUpServices = signUpServices;
+            _customerServices = customerServices;
+            _payTermsServices = payTermServices;
+            _mainCustomerServices = mainCustomerServices;
+            _taxService = taxService;
         }
 
         // =========================================
