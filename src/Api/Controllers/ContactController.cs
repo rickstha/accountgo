@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Services.Sales;
 using Services.Purchasing;
 
-// For more information on enabling MVC for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace Api.Controllers
 {
