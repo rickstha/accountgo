@@ -59,6 +59,11 @@ namespace AccountGoWeb.Controllers
             ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
             ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
 
+            // for future use
+              viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
+            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
+            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+
             return View(model);
         }
 
@@ -81,6 +86,12 @@ namespace AccountGoWeb.Controllers
                 ViewBag.Items = Models.SelectListItemHelper.Items();
                 ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
                 ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+
+            // for future use
+              viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
+            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
+            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+
 
                 return View(model);
             }
@@ -131,6 +142,11 @@ namespace AccountGoWeb.Controllers
             ViewBag.Items = Models.SelectListItemHelper.Items();
             @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
             @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+        // for future use
+            viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
+            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
+            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+
 
             return View(model);
         }
