@@ -1,5 +1,8 @@
 ﻿using Dto.Inventory;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.Net.Http.Headers;
+using System.Text;
 
 namespace AccountGoWeb.Controllers
 {
@@ -7,7 +10,9 @@ namespace AccountGoWeb.Controllers
     public class InventoryController : BaseController
     {
         private readonly ILogger<InventoryController> _logger;
-        public InventoryController(Microsoft.Extensions.Configuration.IConfiguration config,
+
+        public InventoryController(
+            Microsoft.Extensions.Configuration.IConfiguration config,
             ILogger<InventoryController> logger)
         {
             _baseConfig = config;
@@ -19,17 +24,25 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Items";
 
-            using (var client = new System.Net.Http.HttpClient())
+            try
             {
+                using var client = new HttpClient();
                 var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
+                client.BaseAddress = new Uri(baseUri!);
                 client.DefaultRequestHeaders.Accept.Clear();
+
                 var response = await client.GetAsync(baseUri + "inventory/items");
                 if (response.IsSuccessStatusCode)
                 {
                     var responseJson = await response.Content.ReadAsStringAsync();
                     return View(model: responseJson);
                 }
+
+                _logger.LogWarning("Failed to retrieve items. Status: {StatusCode}", response.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading items");
             }
 
             return View();
@@ -39,75 +52,97 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Inventory Control Journal";
 
-            using (var client = new System.Net.Http.HttpClient())
+            try
             {
+                using var client = new HttpClient();
                 var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
+                client.BaseAddress = new Uri(baseUri!);
                 client.DefaultRequestHeaders.Accept.Clear();
+
                 var response = await client.GetAsync(baseUri + "inventory/icj");
                 if (response.IsSuccessStatusCode)
                 {
                     var responseJson = await response.Content.ReadAsStringAsync();
                     return View(model: responseJson);
                 }
+
+                _logger.LogWarning("Failed to retrieve ICJ. Status: {StatusCode}", response.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading Inventory Control Journal");
             }
 
             return View();
         }
 
-        public IActionResult Item(int id)
+        public async Task<IActionResult> Item(int id)
         {
-            _logger.LogInformation("GetItem: " + id);
-            Item? itemModel = null;
+            _logger.LogInformation("GetItem: {Id}", id);
+
+            Item? itemModel;
+
             if (id == -1)
             {
-                ViewBag.PageContentHeader = "Item Customer";
-                itemModel = new Item();
-                itemModel.No = new System.Random().Next(1, 99999).ToString(); // TODO: Replace with system generated numbering.
+                ViewBag.PageContentHeader = "New Item";
+                itemModel = new Item
+                {
+                    No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+                };
             }
             else
             {
                 ViewBag.PageContentHeader = "Item Card";
-                itemModel = GetAsync<Item>("inventory/item?id=" + id).Result;
+                itemModel = await GetAsync<Item>("inventory/item?id=" + id);
+
+                if (itemModel == null)
+                {
+                    return NotFound();
+                }
             }
 
-            ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
-            ViewBag.ItemTaxGroups = Models.SelectListItemHelper.ItemTaxGroups();
-            ViewBag.Measurements = Models.SelectListItemHelper.UnitOfMeasurements();
-            ViewBag.ItemCategories = Models.SelectListItemHelper.ItemCategories();
-
+            PopulateItemViewBags();
             return View(itemModel);
         }
 
-        public IActionResult AddItem(){
+        [HttpGet]
+        public IActionResult AddItem()
+        {
             ViewBag.PageContentHeader = "New Item";
 
-            ViewBag.ItemCategories = Models.SelectListItemHelper.ItemCategories();
-            ViewBag.Measurements = Models.SelectListItemHelper.UnitOfMeasurements();
-            ViewBag.ItemTaxGroups = Models.SelectListItemHelper.ItemTaxGroups();
-            ViewBag.PreferredVendorId = Models.SelectListItemHelper.Vendors();
-            ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
+            var itemModel = new Item
+            {
+                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+            };
 
-            Item itemModel = new Item();
-
+            PopulateItemViewBags();
             return View(itemModel);
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddItem(Item itemModel){
+        public async Task<IActionResult> AddItem(Item itemModel)
+        {
             ViewBag.PageContentHeader = "New Item";
 
-            if (ModelState.IsValid) {
-                _logger.LogInformation("Item Model is Valid: " + itemModel.Description);
+            if (ModelState.IsValid)
+            {
+                _logger.LogInformation("Item Model is Valid: {Description}", itemModel.Description);
+
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(itemModel);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
+
                 var response = await Post("Inventory/SaveItem", content);
-                _logger.LogInformation("Response: " + response);
+                _logger.LogInformation("AddItem response: {Response}", response);
+
                 if (response.IsSuccessStatusCode)
-                    return RedirectToAction("Items");
+                {
+                    return RedirectToAction(nameof(Index));
+                }
+
+                _logger.LogWarning("Failed to save new item. Status: {StatusCode}", response.StatusCode);
             }
 
+            PopulateItemViewBags();
             return View(itemModel);
         }
 
@@ -117,25 +152,38 @@ namespace AccountGoWeb.Controllers
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(itemModel);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = await Post("inventory/saveitem", content);
 
-                return RedirectToAction("Index");
+                if (response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction(nameof(Index));
+                }
+
+                _logger.LogWarning("Failed to save item. Status: {StatusCode}", response.StatusCode);
             }
 
+            // Re-populate dropdowns and return the edit view on failure
+            PopulateItemViewBags();
+
+            ViewBag.PageContentHeader = itemModel.Id > 0 ? "Item Card" : "New Item";
+
+            // Return the Item view (not Index) so the user can correct the data
+            return View("Item", itemModel);
+        }
+
+        #region Private Helpers
+
+        private void PopulateItemViewBags()
+        {
             ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
             ViewBag.ItemTaxGroups = Models.SelectListItemHelper.ItemTaxGroups();
             ViewBag.Measurements = Models.SelectListItemHelper.UnitOfMeasurements();
             ViewBag.ItemCategories = Models.SelectListItemHelper.ItemCategories();
-
-            if (itemModel.Id > 0)
-                ViewBag.PageContentHeader = "Item Item";
-            else
-                ViewBag.PageContentHeader = "New Card";
-
-            return View("Index");
+            ViewBag.PreferredVendorId = Models.SelectListItemHelper.Vendors();
         }
+
+        #endregion
     }
 }

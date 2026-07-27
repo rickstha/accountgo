@@ -141,7 +141,7 @@ namespace AccountGoWeb.Controllers
             return View(model);
         }
 
-       yy
+    
         private void PopulateQuotationFormViewBags()
         {
             ViewBag.Customers = Models.SelectListItemHelper.Customers();
