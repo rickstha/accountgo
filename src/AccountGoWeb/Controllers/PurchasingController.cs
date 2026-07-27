@@ -1,5 +1,8 @@
 ﻿using Dto.Purchasing;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace AccountGoWeb.Controllers
 {
@@ -7,10 +10,13 @@ namespace AccountGoWeb.Controllers
     public class PurchasingController : BaseController
     {
         private readonly ILogger<PurchasingController> _logger;
+
         public PurchasingController(IConfiguration config, ILogger<PurchasingController> logger)
         {
             _baseConfig = config;
+
             Models.SelectListItemHelper._config = config;
+
             _logger = logger;
         }
 
@@ -19,39 +25,47 @@ namespace AccountGoWeb.Controllers
             return View();
         }
 
-        public IActionResult PurchaseOrders()
-
+        public async Task<IActionResult> PurchaseOrders()
+        {
             ViewBag.PageContentHeader = "Purchase Orders";
 
-            string purchaseOrders = GetAsync<object>("purchasing/purchaseorders")
-                .Result
-                .ToString()!;
+            var purchaseOrders = await GetAsync<object>("purchasing/purchaseorders");
+            if (purchaseOrders == null)
+            {
+                _logger.LogWarning("Failed to load purchase orders.");
+                return View(model: string.Empty);
+            }
 
-            return View(model: purchaseOrders);
+            return View(model: purchaseOrders.ToString());
         }
 
         public IActionResult AddPurchaseOrder()
         {
             ViewBag.PageContentHeader = "Add Purchase Order";
-            PurchaseOrder purchaseOrderModel = new PurchaseOrder();
-            purchaseOrderModel.PurchaseOrderLines = new List<PurchaseOrderLine> { new PurchaseOrderLine {
-                Amount = 0,
-                Discount = 0,
-                ItemId = 1,
-                Quantity = 1,
-            } };
-            purchaseOrderModel.No = new System.Random().Next(1, 99999).ToString();
 
-            ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
-            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            ViewBag.Items = Models.SelectListItemHelper.Items();
-            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            PurchaseOrder purchaseOrderModel = new PurchaseOrder
+            {
+                PurchaseOrderLines = new List<PurchaseOrderLine>
+                {
+                    new PurchaseOrderLine
+                    {
+                        Amount = 0,
+                        Discount = 0,
+                        ItemId = 1,
+                        Quantity = 1,
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString()
+            };
+
+            PopulatePurchaseOrderFormViewBags();
 
             return View(purchaseOrderModel);
         }
 
         [HttpPost]
-        public IActionResult AddPurchaseOrder(PurchaseOrder purchaseOrder, string addRowBtn)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddPurchaseOrder(PurchaseOrder purchaseOrder, string addRowBtn)
         {
             ViewBag.PageContentHeader = "Add Purchase Order";
 
@@ -65,119 +79,125 @@ namespace AccountGoWeb.Controllers
                     Quantity = 1
                 });
 
-                ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
-                ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-                ViewBag.Items = Models.SelectListItemHelper.Items();
-                ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+                PopulatePurchaseOrderFormViewBags();
 
                 return View(purchaseOrder);
             }
-            else if (ModelState.IsValid)
+
+            if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(purchaseOrder);
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
-                var response = PostAsync("purchasing/savepurchaseorder", content);
+                var response = await PostAsync("purchasing/savepurchaseorder", content);
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Failed to save purchase order.");
+                    ModelState.AddModelError(string.Empty, "Failed to save purchase order.");
+
+                    PopulatePurchaseOrderFormViewBags();
+                    return View(purchaseOrder);
+                }
 
                 return RedirectToAction("PurchaseOrders");
             }
 
-            return View("PurchaseOrders");
+           
+            PopulatePurchaseOrderFormViewBags();
+
+            return View(purchaseOrder);
         }
 
-        public IActionResult PurchaseInvoice(int id)
+        public async Task<IActionResult> PurchaseInvoice(int id)
         {
             ViewBag.PageContentHeader = "Purchase Invoice";
-
-            PurchaseInvoice? purchaseInvoiceModel = null;
 
             if (id == 0)
             {
                 ViewBag.PageContentHeader = "New Purchase Invoice";
                 return View("PurchaseInvoice");
             }
-            else
+
+            var purchaseInvoiceModel = await GetAsync<PurchaseInvoice>("Purchasing/PurchaseInvoice?id=" + id);
+            if (purchaseInvoiceModel == null)
             {
-                purchaseInvoiceModel = GetAsync<PurchaseInvoice>("Purchasing/PurchaseInvoice?id=" + id).Result;
+                _logger.LogWarning("Purchase invoice {Id} not found.", id);
+                return NotFound();
             }
 
-            ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
-            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            ViewBag.Items = Models.SelectListItemHelper.Items();
-            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            PopulatePurchaseOrderFormViewBags();
 
             return View(purchaseInvoiceModel);
         }
 
-
-        public IActionResult PurchaseOrder(int id)
+        public async Task<IActionResult> PurchaseOrder(int id)
         {
             ViewBag.PageContentHeader = "Purchase Order";
-
-            PurchaseOrder? purchaseOrderModel = null;
 
             if (id == 0)
             {
                 ViewBag.PageContentHeader = "New Purchase Order";
                 return View();
             }
-            else
+
+            var purchaseOrderModel = await GetAsync<PurchaseOrder>("Purchasing/PurchaseOrder?id=" + id);
+            if (purchaseOrderModel == null)
             {
-                purchaseOrderModel = GetAsync<PurchaseOrder>("Purchasing/PurchaseOrder?id=" + id).Result;
+                _logger.LogWarning("Purchase order {Id} not found.", id);
+                return NotFound();
             }
 
-            ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
-            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            ViewBag.Items = Models.SelectListItemHelper.Items();
-            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            PopulatePurchaseOrderFormViewBags();
 
             return View(purchaseOrderModel);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> PurchaseInvoices()
+        public async Task<IActionResult> PurchaseInvoices()
         {
             ViewBag.PageContentHeader = "Purchase Invoices";
-            using (var client = new HttpClient())
+
+           
+            var responseJson = await GetAsync<string>("purchasing/purchaseinvoices");
+            if (responseJson == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "purchasing/purchaseinvoices");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load purchase invoices.");
+                return View();
             }
-            return View();
+
+            return View(model: responseJson);
         }
 
         public IActionResult AddPurchaseInvoice()
         {
             ViewBag.PageContentHeader = "New Invoice";
 
-            PurchaseInvoice purchaseInvoiceModel = new PurchaseInvoice();
-            purchaseInvoiceModel.PurchaseInvoiceLines = new List<PurchaseInvoiceLine> { new PurchaseInvoiceLine {
-                Amount = 0,
-                Discount = 0,
-                ItemId = 1,
-                Quantity = 1,
-            } };
-            purchaseInvoiceModel.No = new System.Random().Next(1, 99999).ToString();
+            PurchaseInvoice purchaseInvoiceModel = new PurchaseInvoice
+            {
+                PurchaseInvoiceLines = new List<PurchaseInvoiceLine>
+                {
+                    new PurchaseInvoiceLine
+                    {
+                        Amount = 0,
+                        Discount = 0,
+                        ItemId = 1,
+                        Quantity = 1,
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString()
+            };
 
-            ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
-            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            ViewBag.Items = Models.SelectListItemHelper.Items();
-            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            PopulatePurchaseOrderFormViewBags();
 
             return View(purchaseInvoiceModel);
         }
 
         [HttpPost]
-        public async System.Threading.Tasks.Task<IActionResult> AddPurchaseInvoice(PurchaseInvoice purchaseInvoice, string addRowBtn)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddPurchaseInvoice(PurchaseInvoice purchaseInvoice, string addRowBtn)
         {
             ViewBag.PageContentHeader = "New Invoice";
+
             if (!string.IsNullOrEmpty(addRowBtn))
             {
                 purchaseInvoice.PurchaseInvoiceLines.Add(new PurchaseInvoiceLine
@@ -188,26 +208,34 @@ namespace AccountGoWeb.Controllers
                     Quantity = 1
                 });
 
-                ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
-                ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-                ViewBag.Items = Models.SelectListItemHelper.Items();
-                ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+                PopulatePurchaseOrderFormViewBags();
 
                 return View(purchaseInvoice);
             }
-            else if (ModelState.IsValid)
+
+            if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(purchaseInvoice);
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
                 var response = await PostAsync("Purchasing/SavePurchaseInvoice", content);
-                _logger.LogInformation("Purchase Invoice Saved" + purchaseInvoice.Id);
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Failed to save purchase invoice.");
+                    ModelState.AddModelError(string.Empty, "Failed to save purchase invoice.");
 
+                    PopulatePurchaseOrderFormViewBags();
+                    return View(purchaseInvoice);
+                }
+
+                _logger.LogInformation("Purchase Invoice Saved {Id}", purchaseInvoice.Id);
                 return RedirectToAction("PurchaseInvoices");
             }
 
-            return View();
+            PopulatePurchaseOrderFormViewBags();
+
+            return View(purchaseInvoice);
         }
 
         public IActionResult AddPurchaseReceipt(int purchId = 0)
@@ -217,52 +245,53 @@ namespace AccountGoWeb.Controllers
             return View();
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> Vendors()
+        public async Task<IActionResult> Vendors()
         {
             ViewBag.PageContentHeader = "Vendors";
-            using (var client = new HttpClient())
+
+            var responseJson = await GetAsync<string>("purchasing/vendors");
+            if (responseJson == null)
             {
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "purchasing/vendors");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load vendors.");
+                return View();
             }
-            return View();
+
+            return View(model: responseJson);
         }
-        public IActionResult Vendor(int id = -1)
+
+        public async Task<IActionResult> Vendor(int id = -1)
         {
-            Dto.Purchasing.Vendor? vendorModel = null;
+            Dto.Purchasing.Vendor vendorModel;
+
             if (id == -1)
             {
                 ViewBag.PageContentHeader = "New Vendor";
-                vendorModel = new Dto.Purchasing.Vendor();
-                vendorModel.No = new System.Random().Next(1, 99999).ToString(); // TODO: Replace with system generated numbering.
+                vendorModel = new Dto.Purchasing.Vendor
+                {
+                    No = new Random().Next(1, 99999).ToString() // TODO: Replace with system generated numbering.
+                };
             }
             else
             {
                 ViewBag.PageContentHeader = "Vendor Card";
-                vendorModel = GetAsync<Dto.Purchasing.Vendor>("purchasing/vendor?id=" + id).Result;
+                vendorModel = await GetAsync<Dto.Purchasing.Vendor>("purchasing/vendor?id=" + id);
+
+                if (vendorModel == null)
+                {
+                    _logger.LogWarning("Vendor {Id} not found.", id);
+                    return NotFound();
+                }
             }
 
-              // this code generating some error
-            // ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
-            // ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
-            // ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
-            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
-            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+           
+            PopulateVendorFormViewBags();
 
             return View(vendorModel);
         }
 
-
-        
-        public IActionResult SaveVendor(Dto.Purchasing.Vendor vendorModel)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveVendor(Dto.Purchasing.Vendor vendorModel)
         {
             if (ModelState.IsValid)
             {
@@ -270,38 +299,37 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
-                var response = PostAsync("purchasing/savevendor", content);
+                var response = await PostAsync("purchasing/savevendor", content);
+                if (response != null && response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction("Vendors");
+                }
 
-                return RedirectToAction("Vendors");
-            }
-            else
-            {
-                // this code generating some error
-                // ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
-                // ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
-                // ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-
-                viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
-                viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
-                viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
-
+                _logger.LogWarning("Failed to save vendor {No}.", vendorModel.No);
+                ModelState.AddModelError(string.Empty, "Failed to save vendor.");
             }
 
-            if (vendorModel.Id == -1)
-                ViewBag.PageContentHeader = "New Vendor";
-            else
-                ViewBag.PageContentHeader = "Vendor Card";
+            PopulateVendorFormViewBags();
+
+            ViewBag.PageContentHeader = vendorModel.Id == -1 ? "New Vendor" : "Vendor Card";
 
             return View("Vendor", vendorModel);
         }
 
-        public IActionResult Payment(int id)
+        [HttpGet]
+        public async Task<IActionResult> Payment(int id)
         {
             ViewBag.PageContentHeader = "Make Payment";
 
-            var invoice = GetAsync<Dto.Purchasing.PurchaseInvoice>("purchasing/purchaseinvoice?id=" + id).Result;
+            var invoice = await GetAsync<Dto.Purchasing.PurchaseInvoice>("purchasing/purchaseinvoice?id=" + id);
+            if (invoice == null)
+            {
+                _logger.LogWarning("Purchase invoice {Id} not found for payment.", id);
+                return NotFound();
+            }
 
-            var model = new Models.Purchasing.Payment()
+          
+            var model = new Models.Purchasing.Payment
             {
                 InvoiceId = invoice.Id,
                 InvoiceNo = invoice.No,
@@ -309,14 +337,7 @@ namespace AccountGoWeb.Controllers
                 VendorName = invoice.VendorName,
                 InvoiceAmount = invoice.Amount,
                 AmountPaid = invoice.AmountPaid,
-                Date = invoice.InvoiceDate,
-                CustomerDetails = invoice.MainCustomerDretail,
-                PaymentDetails = invoice.PaymentDetails,
-                TaxAmount = invoice.MainTaxAmount,
-                UserDetails = invoice.UserDetails,
-                BaseAddress = invoice.BaseDetails,
-                DiscountPaid = invoice.DiscountPain
-
+                Date = invoice.InvoiceDate
             };
 
             ViewBag.CashBanks = Models.SelectListItemHelper.CashBanks();
@@ -325,6 +346,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Payment(Models.Purchasing.Payment model)
         {
             if (ModelState.IsValid)
@@ -332,13 +354,36 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
                 var response = await Post("purchasing/savepayment", content);
-                if (response.IsSuccessStatusCode)
-                    return RedirectToAction("purchaseinvoices");
+                if (response != null && response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction("PurchaseInvoices");
+                }
+
+                _logger.LogWarning("Failed to save payment for invoice {InvoiceId}.", model.InvoiceId);
+                ModelState.AddModelError(string.Empty, "Failed to save payment.");
             }
+
             ViewBag.PageContentHeader = "Make Payment";
             ViewBag.CashBanks = Models.SelectListItemHelper.CashBanks();
             return View(model);
+        }
+
+      
+        private void PopulatePurchaseOrderFormViewBags()
+        {
+            ViewBag.Vendors = Models.SelectListItemHelper.Vendors();
+            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
+            ViewBag.Items = Models.SelectListItemHelper.Items();
+            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+        }
+
+        private void PopulateVendorFormViewBags()
+        {
+            ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
+            ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
+            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
         }
     }
 }
