@@ -249,13 +249,19 @@ namespace AccountGoWeb.Controllers
                 vendorModel = GetAsync<Dto.Purchasing.Vendor>("purchasing/vendor?id=" + id).Result;
             }
 
-            ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
-            ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
-            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
+              // this code generating some error
+            // ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
+            // ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
+            // ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
+            viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
+            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
+            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
 
             return View(vendorModel);
         }
 
+
+        
         public IActionResult SaveVendor(Dto.Purchasing.Vendor vendorModel)
         {
             if (ModelState.IsValid)
@@ -270,9 +276,15 @@ namespace AccountGoWeb.Controllers
             }
             else
             {
-                ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
-                ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
-                ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
+                // this code generating some error
+                // ViewBag.Accounts = Models.SelectListItemHelper.Accounts();
+                // ViewBag.TaxGroups = Models.SelectListItemHelper.TaxGroups();
+                // ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
+
+                viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
+                viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
+                viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+
             }
 
             if (vendorModel.Id == -1)
@@ -297,7 +309,14 @@ namespace AccountGoWeb.Controllers
                 VendorName = invoice.VendorName,
                 InvoiceAmount = invoice.Amount,
                 AmountPaid = invoice.AmountPaid,
-                Date = invoice.InvoiceDate
+                Date = invoice.InvoiceDate,
+                CustomerDetails = invoice.MainCustomerDretail,
+                PaymentDetails = invoice.PaymentDetails,
+                TaxAmount = invoice.MainTaxAmount,
+                UserDetails = invoice.UserDetails,
+                BaseAddress = invoice.BaseDetails,
+                DiscountPaid = invoice.DiscountPain
+
             };
 
             ViewBag.CashBanks = Models.SelectListItemHelper.CashBanks();
