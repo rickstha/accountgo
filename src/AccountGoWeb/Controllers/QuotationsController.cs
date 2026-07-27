@@ -1,13 +1,21 @@
 ﻿using Dto.Sales;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace AccountGoWeb.Controllers
 {
     //[Microsoft.AspNetCore.Authorization.Authorize]
+    // NOTE (flagged, not changed): every other controller reviewed in this app extends
+    // BaseController. This one extends GoodController instead - please verify this is
+    // intentional and not a typo, and that GoodController actually exposes _configuration,
+    // GetAsync<T>, and PostAsync the same way BaseController does.
     public class QuotationsController : GoodController
     {
         //private readonly IConfiguration _configuration;
         private readonly ILogger<QuotationsController> _logger;
+
         public QuotationsController(IConfiguration config, ILogger<QuotationsController> logger)
         {
             _configuration = config;
@@ -16,27 +24,24 @@ namespace AccountGoWeb.Controllers
 
         public IActionResult Index()
         {
-            return RedirectToAction("quotations");
+            return RedirectToAction("Quotations");
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> Quotations()
+        public async Task<IActionResult> Quotations()
         {
             ViewBag.PageContentHeader = "Quotations";
 
-            using (var client = new HttpClient())
+            // Switched from a manually-created HttpClient (resource leak / socket
+            // exhaustion risk under load) to the GetAsync<T> helper, matching how
+            // Quotation(id) already uses it in this same class.
+            var responseJson = await GetAsync<string>("sales/quotations");
+            if (responseJson == null)
             {
-                var baseUri = _configuration!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-                var response = await client.GetAsync(baseUri + "sales/quotations");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
+                _logger.LogWarning("Failed to load quotations.");
+                return View();
             }
 
-            return View();
+            return View(model: responseJson);
         }
 
         [HttpGet]
@@ -44,35 +49,36 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Add Sales Quotation";
 
-            SalesQuotation model = new SalesQuotation();
-            model.SalesQuotationLines = new List<SalesQuotationLine> { new SalesQuotationLine {
-                Amount = 0,
-                Quantity = 1,
-                Discount = 0,
-                ItemId = 1,
-                MeasurementId = 1,
-            } };
-            model.No = new System.Random().Next(1, 99999).ToString(); // TODO: Replace with system generated numbering.
+            SalesQuotation model = new SalesQuotation
+            {
+                SalesQuotationLines = new List<SalesQuotationLine>
+                {
+                    new SalesQuotationLine
+                    {
+                        Amount = 0,
+                        Quantity = 1,
+                        Discount = 0,
+                        ItemId = 1,
+                        MeasurementId = 1,
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system generated numbering.
+            };
 
-            ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            ViewBag.Items = Models.SelectListItemHelper.Items();
-            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
-
-            // for future use
-              viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
-            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
-            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+            PopulateQuotationFormViewBags();
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddSalesQuotation(Dto.Sales.SalesQuotation model, string addRowBtn)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddSalesQuotation(SalesQuotation model, string addRowBtn)
         {
             if (!string.IsNullOrEmpty(addRowBtn))
             {
                 _logger.LogInformation("Add Row Button Clicked");
+
+                model.SalesQuotationLines ??= new List<SalesQuotationLine>();
                 model.SalesQuotationLines.Add(new SalesQuotationLine
                 {
                     Amount = 0,
@@ -82,73 +88,77 @@ namespace AccountGoWeb.Controllers
                     MeasurementId = 1,
                 });
 
-                ViewBag.Customers = Models.SelectListItemHelper.Customers();
-                ViewBag.Items = Models.SelectListItemHelper.Items();
-                ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-                ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
-
-            // for future use
-              viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
-            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
-            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
-
+                PopulateQuotationFormViewBags();
 
                 return View(model);
             }
-            else if (ModelState.IsValid)
+
+            if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
                 var content = new StringContent(serialize);
                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                _logger.LogInformation("Quotation ID is is : " + model.Id);
-                using (var client = new HttpClient())
-                {
-                    var baseUri = _configuration!["ApiUrl"];
-                    client.BaseAddress = new Uri(baseUri!);
-                    var response = await client.PostAsync("sales/savequotation", content);
 
-                    if (response.IsSuccessStatusCode)
-                        return RedirectToAction("quotations");
+                _logger.LogInformation("Quotation ID is: " + model.Id);
+
+                var response = await PostAsync("sales/savequotation", content);
+                if (response != null && response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction("Quotations");
                 }
+
+                _logger.LogWarning("Failed to save sales quotation.");
+                ModelState.AddModelError(string.Empty, "Failed to save sales quotation.");
             }
 
-            return View();
+            // Redisplay the same form with data intact instead of a blank view.
+            PopulateQuotationFormViewBags();
+
+            return View(model);
         }
 
         [HttpGet]
-        public IActionResult Quotation(int id)
+        public async Task<IActionResult> Quotation(int id)
         {
             ViewBag.PageContentHeader = "Sales";
 
-            SalesQuotation? model = null;
-
             if (id == 0)
             {
-                ViewBag.PageContentHeader = "Add Sales Quotation";
-                return View("AddSalesQuotation");
+                // Delegate to the dedicated Add action so the form gets its
+                // required ViewBag select lists populated correctly, instead of
+                // rendering that view here without them.
+                return RedirectToAction(nameof(AddSalesQuotation));
             }
-            else
+
+            var model = await GetAsync<SalesQuotation>("Sales/Quotation?id=" + id);
+            if (model == null)
             {
-                model = GetAsync<SalesQuotation>("Sales/Quotation?id=" + id).Result;
-                @ViewBag.Id = model.Id;
-                @ViewBag.QuotationDate = model.QuotationDate;
-                @ViewBag.CustomerName = model.CustomerName;
-                @ViewBag.PaymentTermId = model.PaymentTermId;
-                @ViewBag.SalesQuotationLines = model.SalesQuotationLines;
-                @ViewBag.TotalAmount = model.Amount;
+                _logger.LogWarning("Sales quotation {Id} not found.", id);
+                return NotFound();
             }
 
-            @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            ViewBag.Items = Models.SelectListItemHelper.Items();
-            @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
-        // for future use
-            viewBag.accounts.Main = Models.mainListItemHelper.mainAccounts.Accounts();
-            viewBag.TaxGroups.Main = Models.SelectListItemHelper.mainTaxGroups.TaxGroups();
-            viewBag.PaymentTerms = Models.SelectListItemHelper.mainPaymentTerms.PaymentTerms();
+            ViewBag.Id = model.Id;
+            ViewBag.QuotationDate = model.QuotationDate;
+            ViewBag.CustomerName = model.CustomerName;
+            ViewBag.PaymentTermId = model.PaymentTermId;
+            ViewBag.SalesQuotationLines = model.SalesQuotationLines;
+            ViewBag.TotalAmount = model.Amount;
 
+            PopulateQuotationFormViewBags();
 
             return View(model);
+        }
+
+        // ------------------------------------------------------------------
+        // Shared ViewBag population helper (extracted to remove duplicate
+        // code that was repeated across 3 action methods).
+        // ------------------------------------------------------------------
+        private void PopulateQuotationFormViewBags()
+        {
+            ViewBag.Customers = Models.SelectListItemHelper.Customers();
+            ViewBag.Items = Models.SelectListItemHelper.Items();
+            ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
+            ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
         }
     }
 }
