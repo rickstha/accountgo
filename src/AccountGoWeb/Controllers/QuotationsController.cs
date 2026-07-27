@@ -6,11 +6,7 @@ using System.Threading.Tasks;
 
 namespace AccountGoWeb.Controllers
 {
-    //[Microsoft.AspNetCore.Authorization.Authorize]
-    // NOTE (flagged, not changed): every other controller reviewed in this app extends
-    // BaseController. This one extends GoodController instead - please verify this is
-    // intentional and not a typo, and that GoodController actually exposes _configuration,
-    // GetAsync<T>, and PostAsync the same way BaseController does.
+   
     public class QuotationsController : GoodController
     {
         //private readonly IConfiguration _configuration;
@@ -31,9 +27,7 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Quotations";
 
-            // Switched from a manually-created HttpClient (resource leak / socket
-            // exhaustion risk under load) to the GetAsync<T> helper, matching how
-            // Quotation(id) already uses it in this same class.
+           
             var responseJson = await GetAsync<string>("sales/quotations");
             if (responseJson == null)
             {
@@ -62,7 +56,7 @@ namespace AccountGoWeb.Controllers
                         MeasurementId = 1,
                     }
                 },
-                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system generated numbering.
+                No = new Random().Next(1, 99999).ToString() 
             };
 
             PopulateQuotationFormViewBags();
@@ -111,7 +105,7 @@ namespace AccountGoWeb.Controllers
                 ModelState.AddModelError(string.Empty, "Failed to save sales quotation.");
             }
 
-            // Redisplay the same form with data intact instead of a blank view.
+           
             PopulateQuotationFormViewBags();
 
             return View(model);
@@ -124,9 +118,7 @@ namespace AccountGoWeb.Controllers
 
             if (id == 0)
             {
-                // Delegate to the dedicated Add action so the form gets its
-                // required ViewBag select lists populated correctly, instead of
-                // rendering that view here without them.
+              
                 return RedirectToAction(nameof(AddSalesQuotation));
             }
 
@@ -149,10 +141,7 @@ namespace AccountGoWeb.Controllers
             return View(model);
         }
 
-        // ------------------------------------------------------------------
-        // Shared ViewBag population helper (extracted to remove duplicate
-        // code that was repeated across 3 action methods).
-        // ------------------------------------------------------------------
+       yy
         private void PopulateQuotationFormViewBags()
         {
             ViewBag.Customers = Models.SelectListItemHelper.Customers();

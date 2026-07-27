@@ -1,13 +1,15 @@
 ﻿using AccountGoWeb.Models;
 using Dto.Sales;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.Net.Http.Headers;
+using System.Text;
 
 namespace AccountGoWeb.Controllers
 {
-    //[Microsoft.AspNetCore.Authorization.Authorize]
+    // [Microsoft.AspNetCore.Authorization.Authorize]
     public class SalesController : GoodController
     {
-        // private readonly IConfiguration _configuration;
         private readonly ILogger<SalesController> _logger;
 
         public SalesController(IConfiguration config, ILogger<SalesController> logger)
@@ -19,148 +21,160 @@ namespace AccountGoWeb.Controllers
 
         public IActionResult Index()
         {
-            return RedirectToAction("SalesOrders");
+            return RedirectToAction(nameof(SalesOrders));
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> SalesOrders()
+        public async Task<IActionResult> SalesOrders()
         {
             ViewBag.PageContentHeader = "Sales Orders";
-            using (var client = new HttpClient())
+
+            try
             {
+                using var client = new HttpClient();
                 var baseUri = _configuration!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
+                client.BaseAddress = new Uri(baseUri!);
                 client.DefaultRequestHeaders.Accept.Clear();
+
                 var response = await client.GetAsync(baseUri + "sales/salesorders");
                 if (response.IsSuccessStatusCode)
                 {
                     var responseJson = await response.Content.ReadAsStringAsync();
                     return View(model: responseJson);
                 }
+
+                _logger.LogWarning("Failed to retrieve sales orders. Status: {StatusCode}", response.StatusCode);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading sales orders");
+            }
+
             return View();
         }
 
         public IActionResult AddSalesOrder()
         {
             ViewBag.PageContentHeader = "Add Sales Order";
-            SalesOrder salesOrderModel = new SalesOrder();
-            salesOrderModel.SalesOrderLines = new List<SalesOrderLine> { new SalesOrderLine {
-                Amount = 0,
-                Discount = 0,
-                ItemId = 1,
-                Quantity = 1,
-            } };
-            salesOrderModel.No = new System.Random().Next(1, 99999).ToString();
 
-            @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            @ViewBag.Items = Models.SelectListItemHelper.Items();
-            @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            var salesOrderModel = new SalesOrder
+            {
+                SalesOrderLines = new List<SalesOrderLine>
+                {
+                    new SalesOrderLine
+                    {
+                        Amount = 0,
+                        Discount = 0,
+                        ItemId = 1,
+                        Quantity = 1,
+                        MeasurementId = 1
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+            };
 
+            PopulateSalesViewBags();
             return View(salesOrderModel);
         }
 
         [HttpPost]
-        public IActionResult AddSalesOrder(SalesOrder Dto, string addRowBtn)
+        public IActionResult AddSalesOrder(SalesOrder dto, string addRowBtn)
         {
             if (!string.IsNullOrEmpty(addRowBtn))
             {
-                Dto.SalesOrderLines.Add(new SalesOrderLine
+                dto.SalesOrderLines ??= new List<SalesOrderLine>();
+                dto.SalesOrderLines.Add(new SalesOrderLine
                 {
                     Amount = 0,
                     Quantity = 1,
                     Discount = 0,
                     ItemId = 1,
-                    MeasurementId = 1,
+                    MeasurementId = 1
                 });
 
-                ViewBag.Customers = Models.SelectListItemHelper.Customers();
-                ViewBag.Items = Models.SelectListItemHelper.Items();
-                ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-                ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
-
-                return View(Dto);
+                PopulateSalesViewBags();
+                return View(dto);
             }
-            else if (ModelState.IsValid)
+
+            if (ModelState.IsValid)
             {
-                var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(Dto);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(dto);
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = Post("Sales/addsalesorder", content);
                 if (response.IsSuccessStatusCode)
-                    return RedirectToAction("salesorders");
-            }
-            @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+                {
+                    return RedirectToAction(nameof(SalesOrders));
+                }
 
-            return RedirectToAction("salesorders");
+                _logger.LogWarning("Failed to add sales order. Status: {StatusCode}", response.StatusCode);
+            }
+
+            PopulateSalesViewBags();
+            return View(dto);
         }
 
-        public IActionResult SalesOrder(int id)
+        public async Task<IActionResult> SalesOrder(int id)
         {
-            ViewBag.PageContentHeader = "Sales Order";
-            SalesOrder? salesOrderModel = null;
             if (id == -1)
             {
                 ViewBag.PageContentHeader = "Add Sales Order";
-                return View("AddSalesOrder");
-
+                return RedirectToAction(nameof(AddSalesOrder));
             }
-            else
+
+            ViewBag.PageContentHeader = "Sales Order";
+
+            var salesOrderModel = await GetAsync<SalesOrder>("Sales/SalesOrder?id=" + id);
+            if (salesOrderModel == null)
             {
-                salesOrderModel = GetAsync<SalesOrder>("Sales/SalesOrder?id=" + id).Result;
-                ViewBag.CustomerName = salesOrderModel.CustomerName;
-                ViewBag.OrderDate = salesOrderModel.OrderDate;
-                ViewBag.SalesOrderLines = salesOrderModel.SalesOrderLines;
-                ViewBag.TotalAmount = salesOrderModel.Amount;
+                return NotFound();
             }
 
-            @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            @ViewBag.Items = Models.SelectListItemHelper.Items();
-            @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            ViewBag.CustomerName = salesOrderModel.CustomerName;
+            ViewBag.OrderDate = salesOrderModel.OrderDate;
+            ViewBag.SalesOrderLines = salesOrderModel.SalesOrderLines;
+            ViewBag.TotalAmount = salesOrderModel.Amount;
 
+            PopulateSalesViewBags();
             return View(salesOrderModel);
         }
 
-        public IActionResult SalesInvoice(int id)
+        public async Task<IActionResult> SalesInvoice(int id)
         {
             ViewBag.PageContentHeader = "Sales Invoice";
-            SalesInvoice? salesInvoiceModel = null;
 
             if (id == 0)
             {
                 ViewBag.PageContentHeader = "Add Sales Invoice";
-                return View("AddSalesInvoice");
+                return RedirectToAction(nameof(AddSalesInvoice));
             }
-            else
+
+            var salesInvoiceModel = await GetAsync<SalesInvoice>("Sales/SalesInvoice?id=" + id);
+            if (salesInvoiceModel == null)
             {
-                salesInvoiceModel = GetAsync<SalesInvoice>("Sales/SalesInvoice?id=" + id).Result;
-                ViewBag.Id = salesInvoiceModel.Id;
-                ViewBag.CustomerName = salesInvoiceModel.CustomerName;
-                ViewBag.InvoiceDate = salesInvoiceModel.InvoiceDate;
-                ViewBag.SalesInvoiceLines = salesInvoiceModel.SalesInvoiceLines;
-                ViewBag.TotalAmount = salesInvoiceModel.Amount;
+                return NotFound();
             }
 
-            @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            @ViewBag.Items = Models.SelectListItemHelper.Items();
-            @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+            ViewBag.Id = salesInvoiceModel.Id;
+            ViewBag.CustomerName = salesInvoiceModel.CustomerName;
+            ViewBag.InvoiceDate = salesInvoiceModel.InvoiceDate;
+            ViewBag.SalesInvoiceLines = salesInvoiceModel.SalesInvoiceLines;
+            ViewBag.TotalAmount = salesInvoiceModel.Amount;
 
+            PopulateSalesViewBags();
             return View("SalesInvoice", salesInvoiceModel);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> SalesInvoices()
+        public async Task<IActionResult> SalesInvoices()
         {
             ViewBag.PageContentHeader = "Sales Invoices";
-            using (var client = new HttpClient())
+
+            try
             {
+                using var client = new HttpClient();
                 var baseUri = _configuration!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
+                client.BaseAddress = new Uri(baseUri!);
                 client.DefaultRequestHeaders.Accept.Clear();
+
                 var response = await client.GetAsync(baseUri + "sales/salesinvoices");
                 if (response.IsSuccessStatusCode)
                 {
@@ -168,11 +182,14 @@ namespace AccountGoWeb.Controllers
                     return View(model: responseJson);
                 }
 
-                @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-                @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-                @ViewBag.Items = Models.SelectListItemHelper.Items();
-                @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
+                _logger.LogWarning("Failed to retrieve sales invoices. Status: {StatusCode}", response.StatusCode);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading sales invoices");
+            }
+
+            PopulateSalesViewBags();
             return View();
         }
 
@@ -181,158 +198,184 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Add Sales Invoice";
 
-            SalesInvoice salesInvoiceModel = new SalesInvoice();
-            salesInvoiceModel.SalesInvoiceLines = new List<SalesInvoiceLine> { new SalesInvoiceLine {
-                Amount = 0,
-                Discount = 0,
-                ItemId = 1,
-                Quantity = 1,
-            } };
-            salesInvoiceModel.No = new System.Random().Next(1, 99999).ToString(); // TODO: Replace with system generated numbering.
+            var salesInvoiceModel = new SalesInvoice
+            {
+                SalesInvoiceLines = new List<SalesInvoiceLine>
+                {
+                    new SalesInvoiceLine
+                    {
+                        Amount = 0,
+                        Discount = 0,
+                        ItemId = 1,
+                        Quantity = 1,
+                        MeasurementId = 1
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+            };
 
-            @ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            @ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-            @ViewBag.Items = Models.SelectListItemHelper.Items();
-            @ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
-
+            PopulateSalesViewBags();
             return View(salesInvoiceModel);
         }
 
         [HttpPost]
-        public async System.Threading.Tasks.Task<IActionResult> AddSalesInvoice(SalesInvoice Dto, string addRowBtn)
+        public async Task<IActionResult> AddSalesInvoice(SalesInvoice dto, string addRowBtn)
         {
             if (!string.IsNullOrEmpty(addRowBtn))
             {
-                Dto.SalesInvoiceLines.Add(new SalesInvoiceLine
+                dto.SalesInvoiceLines ??= new List<SalesInvoiceLine>();
+                dto.SalesInvoiceLines.Add(new SalesInvoiceLine
                 {
                     Amount = 0,
                     Quantity = 1,
                     Discount = 0,
                     ItemId = 1,
-                    MeasurementId = 1,
+                    MeasurementId = 1
                 });
 
-                ViewBag.Customers = Models.SelectListItemHelper.Customers();
-                ViewBag.Items = Models.SelectListItemHelper.Items();
-                ViewBag.PaymentTerms = Models.SelectListItemHelper.PaymentTerms();
-                ViewBag.Measurements = Models.SelectListItemHelper.Measurements();
-
-                return View(Dto);
+                PopulateSalesViewBags();
+                return View(dto);
             }
-            else if (ModelState.IsValid)
+
+            if (ModelState.IsValid)
             {
-                var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(Dto);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                _logger.LogInformation("AddSalesInvoice: " + await content.ReadAsStringAsync());
+                var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(dto);
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("AddSalesInvoice payload: {Payload}", await content.ReadAsStringAsync());
+
                 var response = Post("Sales/SaveSalesInvoice", content);
-                _logger.LogInformation("AddSalesInvoice response: " + response.ToString());
+                _logger.LogInformation("AddSalesInvoice response: {Response}", response);
+
                 if (response.IsSuccessStatusCode)
-                    return RedirectToAction("salesinvoices");
+                {
+                    return RedirectToAction(nameof(SalesInvoices));
+                }
             }
 
-            return View();
+            PopulateSalesViewBags();
+            return View(dto);
         }
 
-        public async System.Threading.Tasks.Task<IActionResult> SalesReceipts()
+        public async Task<IActionResult> SalesReceipts()
         {
             ViewBag.PageContentHeader = "Sales Receipts";
-            using (var client = new HttpClient())
+
+            try
             {
+                using var client = new HttpClient();
                 var baseUri = _configuration!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
+                client.BaseAddress = new Uri(baseUri!);
                 client.DefaultRequestHeaders.Accept.Clear();
+
                 var response = await client.GetAsync(baseUri + "sales/salesreceipts");
                 if (response.IsSuccessStatusCode)
                 {
                     var responseJson = await response.Content.ReadAsStringAsync();
                     return View(model: responseJson);
                 }
+
+                _logger.LogWarning("Failed to retrieve sales receipts. Status: {StatusCode}", response.StatusCode);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading sales receipts");
+            }
+
             return View();
         }
 
         [HttpGet]
-        public IActionResult AddReceipt()
+        public async Task<IActionResult> AddReceipt()
         {
+            ViewBag.PageContentHeader = "New Receipt";
 
             var model = new Models.Sales.AddReceipt();
 
-            if (ModelState.IsValid)
-            {
-                var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                var response = Post("Sales/SaveReceipt", content);
-                if (response.IsSuccessStatusCode)
-                    return RedirectToAction("salesreceipts");
-            }
+            ViewBag.Customers = SelectListItemHelper.Customers();
+            ViewBag.DebitAccounts = SelectListItemHelper.CashBanks();
+            ViewBag.CreditAccounts = SelectListItemHelper.Accounts();
 
-            ViewBag.PageContentHeader = "New Receipt";
-
-            ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            ViewBag.DebitAccounts = Models.SelectListItemHelper.CashBanks();
-            ViewBag.CreditAccounts = Models.SelectListItemHelper.Accounts();
-            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(GetAsync<IEnumerable<Customer>>("sales/customers").Result);
+            var customers = await GetAsync<IEnumerable<Customer>>("sales/customers");
+            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(customers ?? Enumerable.Empty<Customer>());
 
             return View(model);
         }
 
         [HttpPost]
-        public IActionResult AddReceipt(Models.Sales.AddReceipt model)
+        public async Task<IActionResult> AddReceipt(Models.Sales.AddReceipt model)
         {
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
+
                 var response = Post("sales/savereceipt", content);
                 if (response.IsSuccessStatusCode)
-                    return RedirectToAction("salesreceipts");
+                {
+                    return RedirectToAction(nameof(SalesReceipts));
+                }
             }
 
             ViewBag.PageContentHeader = "New Receipt";
+            ViewBag.Customers = SelectListItemHelper.Customers();
+            ViewBag.DebitAccounts = SelectListItemHelper.CashBanks();
+            ViewBag.CreditAccounts = SelectListItemHelper.Accounts();
 
-            ViewBag.Customers = Models.SelectListItemHelper.Customers();
-            ViewBag.DebitAccounts = Models.SelectListItemHelper.CashBanks();
-            ViewBag.CreditAccounts = Models.SelectListItemHelper.Accounts();
-            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(GetAsync<IEnumerable<Customer>>("sales/customers").Result);
+            var customers = await GetAsync<IEnumerable<Customer>>("sales/customers");
+            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(customers ?? Enumerable.Empty<Customer>());
 
             return View(model);
         }
 
-
-        public async System.Threading.Tasks.Task<IActionResult> Customers()
+        public async Task<IActionResult> Customers()
         {
             ViewBag.PageContentHeader = "Customers";
-            using (var client = new HttpClient())
+
+            try
             {
+                using var client = new HttpClient();
                 var baseUri = _configuration!["ApiUrl"];
-                client.BaseAddress = new System.Uri(baseUri!);
+                client.BaseAddress = new Uri(baseUri!);
                 client.DefaultRequestHeaders.Accept.Clear();
+
                 var response = await client.GetAsync(baseUri + "sales/customers");
                 if (response.IsSuccessStatusCode)
                 {
                     var responseJson = await response.Content.ReadAsStringAsync();
                     return View(model: responseJson);
                 }
+
+                _logger.LogWarning("Failed to retrieve customers. Status: {StatusCode}", response.StatusCode);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading customers");
+            }
+
             return View();
         }
 
-        public IActionResult Customer(int id = -1)
+        public async Task<IActionResult> Customer(int id = -1)
         {
-            Customer? customerModel = null;
+            Customer? customerModel;
+
             if (id == -1)
             {
                 ViewBag.PageContentHeader = "New Customer";
-                customerModel = new Customer();
-                customerModel.No = new System.Random().Next(1, 99999).ToString(); // TODO: Replace with system generated numbering.
+                customerModel = new Customer
+                {
+                    No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+                };
             }
             else
             {
                 ViewBag.PageContentHeader = "Customer Card";
-                customerModel = GetAsync<Customer>("sales/customer?id=" + id).Result;
+                customerModel = await GetAsync<Customer>("sales/customer?id=" + id);
+                if (customerModel == null)
+                {
+                    return NotFound();
+                }
             }
 
             ViewBag.Accounts = SelectListItemHelper.Accounts();
@@ -343,83 +386,90 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
-        public async System.Threading.Tasks.Task<IActionResult> SaveSalesInvoice(SalesInvoice salesInvoiceModel)
+        public async Task<IActionResult> SaveSalesInvoice(SalesInvoice salesInvoiceModel)
         {
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(salesInvoiceModel);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                string ReadAsStringAsync = await content.ReadAsStringAsync();
-                _logger.LogInformation("SaveSalesInvoice: " + ReadAsStringAsync);
-                var response = Post("Sales/SaveSalesInvoice", content);
-            }
-            ViewBag.Customers = SelectListItemHelper.Customers();
-            ViewBag.PaymentTerms = SelectListItemHelper.PaymentTerms();
-            ViewBag.Items = SelectListItemHelper.Items();
-            ViewBag.Measurements = SelectListItemHelper.Measurements();
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
+                var payload = await content.ReadAsStringAsync();
+                _logger.LogInformation("SaveSalesInvoice payload: {Payload}", payload);
+
+                var response = Post("Sales/SaveSalesInvoice", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction(nameof(SalesInvoices));
+                }
+            }
+
+            PopulateSalesViewBags();
             return View("SalesInvoice", salesInvoiceModel);
         }
 
+        [HttpPost]
         public async Task<IActionResult> SaveCustomer(Customer customerModel)
         {
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(customerModel);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                string ReadAsStringAsync = await content.ReadAsStringAsync();
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
+
                 var response = await PostAsync("Sales/SaveCustomer", content);
-                return RedirectToAction("Customers");
-            }
-            else
-            {
-                ViewBag.Accounts = SelectListItemHelper.Accounts();
-                ViewBag.TaxGroups = SelectListItemHelper.TaxGroups();
-                ViewBag.PaymentTerms = SelectListItemHelper.PaymentTerms();
+                if (response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction(nameof(Customers));
+                }
             }
 
-            if (customerModel.Id == -1)
-                ViewBag.PageContentHeader = "New Customer";
-            else
-                ViewBag.PageContentHeader = "Customer Card";
+            ViewBag.Accounts = SelectListItemHelper.Accounts();
+            ViewBag.TaxGroups = SelectListItemHelper.TaxGroups();
+            ViewBag.PaymentTerms = SelectListItemHelper.PaymentTerms();
+
+            ViewBag.PageContentHeader = customerModel.Id == -1 || customerModel.Id == 0
+                ? "New Customer"
+                : "Customer Card";
 
             return View("Customer", customerModel);
         }
 
-
         public IActionResult CustomerAllocations(int id)
         {
             ViewBag.PageContentHeader = "Customer Allocations";
-
             return View();
         }
 
-        public IActionResult Allocate(int id)
+        public async Task<IActionResult> Allocate(int id)
         {
             ViewBag.PageContentHeader = "Receipt Allocation";
 
-            var model = new Models.Sales.Allocate();
+            var receipt = await GetAsync<Dto.Sales.SalesReceipt>("sales/salesreceipt?id=" + id);
+            if (receipt == null)
+            {
+                return NotFound();
+            }
 
-            var receipt = GetAsync<Dto.Sales.SalesReceipt>("sales/salesreceipt?id=" + id).Result;
+            var model = new Models.Sales.Allocate
+            {
+                CustomerId = receipt.CustomerId,
+                ReceiptId = receipt.Id,
+                Date = receipt.ReceiptDate,
+                Amount = receipt.Amount,
+                RemainingAmountToAllocate = receipt.RemainingAmountToAllocate,
+                AllocationLines = new List<Models.Sales.AllocationLine>()
+            };
 
             ViewBag.CustomerName = receipt.CustomerName;
             ViewBag.ReceiptNo = receipt.ReceiptNo;
 
-            model.CustomerId = receipt.CustomerId;
-            model.ReceiptId = receipt.Id;
-            model.Date = receipt.ReceiptDate;
-            model.Amount = receipt.Amount;
-            model.RemainingAmountToAllocate = receipt.RemainingAmountToAllocate;
-
-            var invoices = GetAsync<IEnumerable<Dto.Sales.SalesInvoice>>("sales/customerinvoices?id=" + receipt.CustomerId).Result;
+            var invoices = await GetAsync<IEnumerable<Dto.Sales.SalesInvoice>>("sales/customerinvoices?id=" + receipt.CustomerId)
+                           ?? Enumerable.Empty<Dto.Sales.SalesInvoice>();
 
             foreach (var invoice in invoices)
             {
                 if (invoice.Posted && invoice.TotalAllocatedAmount < invoice.Amount)
                 {
-                    model.AllocationLines.Add(new Models.Sales.AllocationLine()
+                    model.AllocationLines.Add(new Models.Sales.AllocationLine
                     {
                         InvoiceId = invoice.Id,
                         Amount = invoice.Amount,
@@ -432,43 +482,63 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
-        public IActionResult Allocate(Models.Sales.Allocate model)
+        public async Task<IActionResult> Allocate(Models.Sales.Allocate model)
         {
-            if (ModelState.IsValid)
+            if (ModelState.IsValid && model.IsValid())
             {
-                if (model.IsValid())
+                var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
+
+                var response = Post("sales/saveallocation", content);
+                if (response.IsSuccessStatusCode)
                 {
-                    var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
-                    var content = new StringContent(serialize);
-                    content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                    var response = Post("sales/saveallocation", content);
-                    if (response.IsSuccessStatusCode)
-                        return RedirectToAction("salesreceipts");
+                    return RedirectToAction(nameof(SalesReceipts));
                 }
             }
 
-            var receipt = GetAsync<Dto.Sales.SalesReceipt>("sales/salesreceipt?id=" + model.ReceiptId).Result;
-            ViewBag.CustomerName = receipt.CustomerName;
-            ViewBag.ReceiptNo = receipt.ReceiptNo;
+            var receipt = await GetAsync<Dto.Sales.SalesReceipt>("sales/salesreceipt?id=" + model.ReceiptId);
+            if (receipt != null)
+            {
+                ViewBag.CustomerName = receipt.CustomerName;
+                ViewBag.ReceiptNo = receipt.ReceiptNo;
+            }
 
             return View(model);
         }
 
-        public IActionResult SalesInvoicePdf(int id)
+        public async Task<IActionResult> SalesInvoicePdf(int id)
         {
-            var invoice = GetAsync<Dto.Sales.SalesInvoice>("sales/salesinvoiceforprinting?id=" + id).Result;
-            SalesInvoice salesInvoiceModel = new SalesInvoice();
-            salesInvoiceModel.ReferenceNo = invoice.ReferenceNo;
-            salesInvoiceModel.No = invoice.No;
-            salesInvoiceModel.InvoiceDate = invoice.InvoiceDate;
-            salesInvoiceModel.CompanyName = invoice.CompanyName;
+            var invoice = await GetAsync<Dto.Sales.SalesInvoice>("sales/salesinvoiceforprinting?id=" + id);
+            if (invoice == null)
+            {
+                return NotFound();
+            }
 
-            salesInvoiceModel.TotalTax = invoice.TotalTax;
-            salesInvoiceModel.TotalAmountAfterTax = invoice.TotalAmountAfterTax;
-            salesInvoiceModel.CustomerName = invoice.CustomerName;
-            salesInvoiceModel.SalesInvoiceLines = invoice.SalesInvoiceLines;
+            var salesInvoiceModel = new SalesInvoice
+            {
+                ReferenceNo = invoice.ReferenceNo,
+                No = invoice.No,
+                InvoiceDate = invoice.InvoiceDate,
+                CompanyName = invoice.CompanyName,
+                TotalTax = invoice.TotalTax,
+                TotalAmountAfterTax = invoice.TotalAmountAfterTax,
+                CustomerName = invoice.CustomerName,
+                SalesInvoiceLines = invoice.SalesInvoiceLines
+            };
+
             return View(salesInvoiceModel);
         }
 
+        #region Private Helpers
+
+        private void PopulateSalesViewBags()
+        {
+            ViewBag.Customers = SelectListItemHelper.Customers();
+            ViewBag.PaymentTerms = SelectListItemHelper.PaymentTerms();
+            ViewBag.Items = SelectListItemHelper.Items();
+            ViewBag.Measurements = SelectListItemHelper.Measurements();
+        }
+
+        #endregion
     }
 }
