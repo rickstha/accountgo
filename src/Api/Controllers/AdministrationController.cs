@@ -7,8 +7,7 @@ using Services.Inventory;
 using Services.Purchasing;
 using Services.Sales;
 using Services.Security;
-// TODO: adjust these two namespaces to match where IMainCustomerService / ITaxService
-// actually live in your solution — they weren't imported in the original file.
+
 using Services.MainCustomer;
 using Services.TaxSystem;
 using System;
@@ -17,6 +16,12 @@ using System.Linq;
 
 namespace Api.Controllers
 {
+    // CRITICAL (flagged): this controller previously had NO authorization at all - not
+    // even the commented placeholder used on every sibling controller. Given that
+    // Clear() wipes the database and Setup()/Users()/Roles()/Groups() expose destructive
+    // operations and full user/PII data, this should be a REAL, enabled authorization
+    // check before going anywhere near production - not left commented out.
+    // [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class AdministrationController : BaseController
@@ -30,6 +35,7 @@ namespace Api.Controllers
         // for future use backend code
         private readonly IMainCustomerService _mainCustomerService;
         private readonly ITaxService _taxService;
+        private readonly ILogger<AdministrationController> _logger;
 
         public AdministrationController(
             IAdministrationService adminService,
@@ -39,7 +45,8 @@ namespace Api.Controllers
             IInventoryService inventoryService,
             ISecurityService securityService,
             IMainCustomerService mainCustomerService,
-            ITaxService taxService)
+            ITaxService taxService,
+            ILogger<AdministrationController> logger)
         {
             _adminService = adminService;
             _financialService = financialService;
@@ -49,6 +56,7 @@ namespace Api.Controllers
             _securityService = securityService;
             _mainCustomerService = mainCustomerService;
             _taxService = taxService;
+            _logger = logger;
         }
 
         // =========================================
@@ -60,37 +68,20 @@ namespace Api.Controllers
         {
             try
             {
-                var initializer = new Api.Data.Initializer(
-                    _adminService,
-                    _financialService,
-                    _salesService,
-                    _purchasingService,
-                    _inventoryService,
-                    _securityService,
-                    _mainCustomerService,
-                    _taxService);
-
+                var initializer = CreateInitializer();
                 bool success = initializer.Setup();
 
                 if (success)
                 {
-                    return Ok(new
-                    {
-                        message = "Initialization completed successfully."
-                    });
+                    return Ok(new { message = "Initialization completed successfully." });
                 }
 
-                return BadRequest(new
-                {
-                    message = "Initialization failed."
-                });
+                return BadRequest(new { message = "Initialization failed." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
+                _logger.LogError(ex, "Setup failed.");
+                return StatusCode(500, new { message = "An error occurred while running setup." });
             }
         }
 
@@ -103,37 +94,20 @@ namespace Api.Controllers
         {
             try
             {
-                var initializer = new Api.Data.Initializer(
-                    _adminService,
-                    _financialService,
-                    _salesService,
-                    _purchasingService,
-                    _inventoryService,
-                    _securityService,
-                    _mainCustomerService,
-                    _taxService);
-
+                var initializer = CreateInitializer();
                 bool success = initializer.Clear();
 
                 if (success)
                 {
-                    return Ok(new
-                    {
-                        message = "Database cleared successfully."
-                    });
+                    return Ok(new { message = "Database cleared successfully." });
                 }
 
-                return BadRequest(new
-                {
-                    message = "Database clearing failed."
-                });
+                return BadRequest(new { message = "Database clearing failed." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
+                _logger.LogError(ex, "Database clear failed.");
+                return StatusCode(500, new { message = "An error occurred while clearing the database." });
             }
         }
 
@@ -144,26 +118,28 @@ namespace Api.Controllers
         [HttpGet("company")]
         public IActionResult Company(string? companyCode)
         {
-            var company = _adminService.GetDefaultCompany();
-
-            if (company == null)
+            try
             {
-                return NotFound(new
-                {
-                    message = "Company not found."
-                });
-            }
+                var company = _adminService.GetDefaultCompany();
 
-            if (!string.IsNullOrWhiteSpace(companyCode) &&
-                !string.Equals(company.CompanyCode, companyCode, StringComparison.OrdinalIgnoreCase))
+                if (company == null)
+                {
+                    return NotFound(new { message = "Company not found." });
+                }
+
+                if (!string.IsNullOrWhiteSpace(companyCode) &&
+                    !string.Equals(company.CompanyCode, companyCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(new { message = "Company not found for the provided code." });
+                }
+
+                return Ok(company);
+            }
+            catch (Exception ex)
             {
-                return NotFound(new
-                {
-                    message = "Company not found for the provided code."
-                });
+                _logger.LogError(ex, "Failed to retrieve company.");
+                return StatusCode(500, new { message = "An error occurred while retrieving the company." });
             }
-
-            return Ok(company);
         }
 
         // =========================================
@@ -173,22 +149,30 @@ namespace Api.Controllers
         [HttpGet("auditlogs")]
         public IActionResult AuditLogs()
         {
-            var auditLogs = _adminService.AuditLogs();
-
-            var auditLogsDto = auditLogs.Select(log => new AuditLog
+            try
             {
-                Id = log.Id,
-                UserName = log.UserName,
-                AuditEventDateUTC = log.AuditEventDateUTC,
-                AuditEventType = log.AuditEventType,
-                TableName = log.TableName,
-                RecordId = log.RecordId,
-                FieldName = log.FieldName,
-                OriginalValue = log.OriginalValue,
-                NewValue = log.NewValue
-            }).ToList();
+                var auditLogs = _adminService.AuditLogs() ?? Enumerable.Empty<Core.Domain.Auditing.AuditLog>();
 
-            return Ok(auditLogsDto);
+                var auditLogsDto = auditLogs.Select(log => new AuditLog
+                {
+                    Id = log.Id,
+                    UserName = log.UserName,
+                    AuditEventDateUTC = log.AuditEventDateUTC,
+                    AuditEventType = log.AuditEventType,
+                    TableName = log.TableName,
+                    RecordId = log.RecordId,
+                    FieldName = log.FieldName,
+                    OriginalValue = log.OriginalValue,
+                    NewValue = log.NewValue
+                }).ToList();
+
+                return Ok(auditLogsDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve audit logs.");
+                return StatusCode(500, new { message = "An error occurred while retrieving audit logs." });
+            }
         }
 
         // =========================================
@@ -198,61 +182,27 @@ namespace Api.Controllers
         [HttpGet("users")]
         public IActionResult Users()
         {
-            var users = _securityService.GetAllUser();
-
-            var usersDto = new List<User>();
-
-            foreach (var user in users)
+            try
             {
-                var userDto = new User
+                var users = _securityService.GetAllUser() ?? Enumerable.Empty<Core.Domain.Security.User>();
+
+                var usersDto = users.Select(user => new User
                 {
                     Id = user.Id,
                     FirstName = user.Firstname,
                     LastName = user.Lastname,
                     Email = user.EmailAddress,
                     UserName = user.UserName,
-                    Roles = new List<Role>()
-                };
+                    Roles = MapUserRoles(user.Roles)
+                }).ToList();
 
-                if (user.Roles != null)
-                {
-                    foreach (var role in user.Roles)
-                    {
-                        var roleDto = new Role
-                        {
-                            Id = role.SecurityRoleId,
-                            Name = role.SecurityRole?.Name,
-                            DisplayName = role.SecurityRole?.DisplayName,
-                            SysAdmin = role.SecurityRole?.SysAdmin ?? false,
-                            Permissions = new List<Permission>()
-                        };
-
-                        if (role.SecurityRole?.Permissions != null)
-                        {
-                            foreach (var permission in role.SecurityRole.Permissions)
-                            {
-                                var permissionDto = new Permission
-                                {
-                                    Id = permission.SecurityPermissionId,
-                                    Name = permission.SecurityPermission?.Name,
-                                    Group = new Group
-                                    {
-                                        Name = permission.SecurityPermission?.Group?.Name
-                                    }
-                                };
-
-                                roleDto.Permissions.Add(permissionDto);
-                            }
-                        }
-
-                        userDto.Roles.Add(roleDto);
-                    }
-                }
-
-                usersDto.Add(userDto);
+                return Ok(usersDto);
             }
-
-            return Ok(usersDto);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve users.");
+                return StatusCode(500, new { message = "An error occurred while retrieving users." });
+            }
         }
 
         // =========================================
@@ -262,39 +212,32 @@ namespace Api.Controllers
         [HttpGet("roles")]
         public IActionResult Roles()
         {
-            var roles = _securityService.GetAllSecurityRole();
-
-            var rolesDto = new List<Role>();
-
-            foreach (var role in roles)
+            try
             {
-                var roleDto = new Role
+                var roles = _securityService.GetAllSecurityRole() ?? Enumerable.Empty<Core.Domain.Security.SecurityRole>();
+
+                var rolesDto = roles.Select(role => new Role
                 {
                     Id = role.Id,
                     Name = role.Name,
                     DisplayName = role.DisplayName,
-                    Permissions = new List<Permission>()
-                };
-
-                if (role.Permissions != null)
-                {
-                    foreach (var permission in role.Permissions)
-                    {
-                        var permissionDto = new Permission
+                    Permissions = (role.Permissions ?? Enumerable.Empty<Core.Domain.Security.SecurityRolePermission>())
+                        .Select(permission => new Permission
                         {
                             Id = permission.Id,
                             Name = permission.SecurityPermission?.Name,
                             DisplayName = permission.SecurityPermission?.DisplayName
-                        };
+                        })
+                        .ToList()
+                }).ToList();
 
-                        roleDto.Permissions.Add(permissionDto);
-                    }
-                }
-
-                rolesDto.Add(roleDto);
+                return Ok(rolesDto);
             }
-
-            return Ok(rolesDto);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve roles.");
+                return StatusCode(500, new { message = "An error occurred while retrieving roles." });
+            }
         }
 
         // =========================================
@@ -304,39 +247,32 @@ namespace Api.Controllers
         [HttpGet("maingroups")]
         public IActionResult MainGroups()
         {
-            var mainGroups = _securityService.GetAllSecurityMainGroup();
-
-            var groupsDto = new List<Group>();
-
-            foreach (var mainGroup in mainGroups)
+            try
             {
-                var groupDto = new Group
+                var mainGroups = _securityService.GetAllSecurityMainGroup() ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
+
+                var groupsDto = mainGroups.Select(mainGroup => new Group
                 {
                     Id = mainGroup.Id,
                     Name = mainGroup.Name,
                     DisplayName = mainGroup.DisplayName,
-                    Permissions = new List<Permission>()
-                };
-
-                if (mainGroup.Permissions != null)
-                {
-                    foreach (var permission in mainGroup.Permissions)
-                    {
-                        var permissionDto = new Permission
+                    Permissions = (mainGroup.Permissions ?? Enumerable.Empty<Core.Domain.Security.SecurityPermission>())
+                        .Select(permission => new Permission
                         {
                             Id = permission.Id,
                             Name = permission.Name,
                             DisplayName = permission.DisplayName
-                        };
+                        })
+                        .ToList()
+                }).ToList();
 
-                        groupDto.Permissions.Add(permissionDto);
-                    }
-                }
-
-                groupsDto.Add(groupDto);
+                return Ok(groupsDto);
             }
-
-            return Ok(groupsDto);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve main groups.");
+                return StatusCode(500, new { message = "An error occurred while retrieving main groups." });
+            }
         }
 
         // =========================================
@@ -346,39 +282,32 @@ namespace Api.Controllers
         [HttpGet("groups")]
         public IActionResult Groups()
         {
-            var groups = _securityService.GetAllSecurityGroup();
-
-            var groupsDto = new List<Group>();
-
-            foreach (var group in groups)
+            try
             {
-                var groupDto = new Group
+                var groups = _securityService.GetAllSecurityGroup() ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
+
+                var groupsDto = groups.Select(group => new Group
                 {
                     Id = group.Id,
                     Name = group.Name,
                     DisplayName = group.DisplayName,
-                    Permissions = new List<Permission>()
-                };
-
-                if (group.Permissions != null)
-                {
-                    foreach (var permission in group.Permissions)
-                    {
-                        var permissionDto = new Permission
+                    Permissions = (group.Permissions ?? Enumerable.Empty<Core.Domain.Security.SecurityPermission>())
+                        .Select(permission => new Permission
                         {
                             Id = permission.Id,
                             Name = permission.Name,
                             DisplayName = permission.DisplayName
-                        };
+                        })
+                        .ToList()
+                }).ToList();
 
-                        groupDto.Permissions.Add(permissionDto);
-                    }
-                }
-
-                groupsDto.Add(groupDto);
+                return Ok(groupsDto);
             }
-
-            return Ok(groupsDto);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve groups.");
+                return StatusCode(500, new { message = "An error occurred while retrieving groups." });
+            }
         }
 
         // =========================================
@@ -390,67 +319,35 @@ namespace Api.Controllers
         {
             if (string.IsNullOrWhiteSpace(username))
             {
-                return BadRequest(new
-                {
-                    message = "Username is required."
-                });
+                return BadRequest(new { message = "Username is required." });
             }
 
-            var user = _securityService.GetUser(username);
-
-            if (user == null)
+            try
             {
-                return NotFound(new
+                var user = _securityService.GetUser(username);
+
+                if (user == null)
                 {
-                    message = "User not found."
-                });
-            }
-
-            var userDto = new User
-            {
-                Id = user.Id,
-                FirstName = user.Firstname,
-                LastName = user.Lastname,
-                UserName = user.UserName,
-                Email = user.EmailAddress,
-                Roles = new List<Role>()
-            };
-
-            if (user.Roles != null)
-            {
-                foreach (var role in user.Roles)
-                {
-                    var roleDto = new Role
-                    {
-                        Id = role.SecurityRoleId,
-                        Name = role.SecurityRole?.Name,
-                        SysAdmin = role.SecurityRole?.SysAdmin ?? false,
-                        Permissions = new List<Permission>()
-                    };
-
-                    if (role.SecurityRole?.Permissions != null)
-                    {
-                        foreach (var permission in role.SecurityRole.Permissions)
-                        {
-                            var permissionDto = new Permission
-                            {
-                                Id = permission.SecurityPermissionId,
-                                Name = permission.SecurityPermission?.Name,
-                                Group = new Group
-                                {
-                                    Name = permission.SecurityPermission?.Group?.Name
-                                }
-                            };
-
-                            roleDto.Permissions.Add(permissionDto);
-                        }
-                    }
-
-                    userDto.Roles.Add(roleDto);
+                    return NotFound(new { message = "User not found." });
                 }
-            }
 
-            return Ok(userDto);
+                var userDto = new User
+                {
+                    Id = user.Id,
+                    FirstName = user.Firstname,
+                    LastName = user.Lastname,
+                    UserName = user.UserName,
+                    Email = user.EmailAddress,
+                    Roles = MapUserRoles(user.Roles)
+                };
+
+                return Ok(userDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve user {Username}.", username);
+                return StatusCode(500, new { message = "An error occurred while retrieving the user." });
+            }
         }
 
         // =========================================
@@ -464,10 +361,7 @@ namespace Api.Controllers
             {
                 if (companyDto == null)
                 {
-                    return BadRequest(new
-                    {
-                        message = "Company data is required."
-                    });
+                    return BadRequest(new { message = "Company data is required." });
                 }
 
                 if (!ModelState.IsValid)
@@ -492,10 +386,7 @@ namespace Api.Controllers
 
                     if (company == null)
                     {
-                        return NotFound(new
-                        {
-                            message = "Company not found."
-                        });
+                        return NotFound(new { message = "Company not found." });
                     }
                 }
 
@@ -505,18 +396,72 @@ namespace Api.Controllers
 
                 _adminService.SaveCompany(company);
 
-                return Ok(new
-                {
-                    message = "Company saved successfully."
-                });
+                return Ok(new { message = "Company saved successfully." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    message = ex.InnerException?.Message ?? ex.Message
-                });
+                _logger.LogError(ex, "Failed to save company.");
+                return StatusCode(500, new { message = "An error occurred while saving the company." });
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Private helpers (extracted to remove duplicate code)
+        // ------------------------------------------------------------------
+
+        private Api.Data.Initializer CreateInitializer()
+        {
+            return new Api.Data.Initializer(
+                _adminService,
+                _financialService,
+                _salesService,
+                _purchasingService,
+                _inventoryService,
+                _securityService,
+                _mainCustomerService,
+                _taxService);
+        }
+
+        private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole> userRoles)
+        {
+            var rolesDto = new List<Role>();
+
+            if (userRoles == null)
+            {
+                return rolesDto;
+            }
+
+            foreach (var role in userRoles)
+            {
+                var roleDto = new Role
+                {
+                    Id = role.SecurityRoleId,
+                    Name = role.SecurityRole?.Name,
+                    DisplayName = role.SecurityRole?.DisplayName,
+                    SysAdmin = role.SecurityRole?.SysAdmin ?? false,
+                    Permissions = new List<Permission>()
+                };
+
+                if (role.SecurityRole?.Permissions != null)
+                {
+                    foreach (var permission in role.SecurityRole.Permissions)
+                    {
+                        roleDto.Permissions.Add(new Permission
+                        {
+                            Id = permission.SecurityPermissionId,
+                            Name = permission.SecurityPermission?.Name,
+                            Group = new Group
+                            {
+                                Name = permission.SecurityPermission?.Group?.Name
+                            }
+                        });
+                    }
+                }
+
+                rolesDto.Add(roleDto);
+            }
+
+            return rolesDto;
         }
     }
 }
