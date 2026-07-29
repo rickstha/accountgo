@@ -10,17 +10,21 @@ using Services.Security;
 
 using Services.MainCustomer;
 using Services.TaxSystem;
+// TODO: point these at the real namespaces for these new service interfaces -
+// they weren't imported anywhere in the source file.
+using Services.Contacts;
+using Services.Users;
+using Services.CustomerContacts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Api.Controllers
 {
-    // CRITICAL (flagged): this controller previously had NO authorization at all - not
-    // even the commented placeholder used on every sibling controller. Given that
-    // Clear() wipes the database and Setup()/Users()/Roles()/Groups() expose destructive
-    // operations and full user/PII data, this should be a REAL, enabled authorization
-    // check before going anywhere near production - not left commented out.
+    // CRITICAL (flagged, regression from a previous fix): this controller has NO
+    // authorization at all. Given that Clear() wipes the database and Setup()/Users()/
+    // Roles()/Groups() expose destructive operations and full user/PII data, this should
+    // be a REAL, enabled authorization check before going anywhere near production.
     // [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController]
@@ -37,6 +41,12 @@ namespace Api.Controllers
         private readonly ITaxService _taxService;
         private readonly ILogger<AdministrationController> _logger;
 
+        // NOTE: not yet used anywhere in this class - injected but currently dead
+        // dependencies. Kept since they appear to be in-progress work.
+        private readonly IContactService _contactService;
+        private readonly IUserService _userService;
+        private readonly ICustomerContactService _customerContactServices;
+
         public AdministrationController(
             IAdministrationService adminService,
             IFinancialService financialService,
@@ -46,7 +56,10 @@ namespace Api.Controllers
             ISecurityService securityService,
             IMainCustomerService mainCustomerService,
             ITaxService taxService,
-            ILogger<AdministrationController> logger)
+            ILogger<AdministrationController> logger,
+            IContactService contactService,
+            IUserService userService,
+            ICustomerContactService customerContactServices)
         {
             _adminService = adminService;
             _financialService = financialService;
@@ -57,6 +70,9 @@ namespace Api.Controllers
             _mainCustomerService = mainCustomerService;
             _taxService = taxService;
             _logger = logger;
+            _contactService = contactService;
+            _userService = userService;
+            _customerContactServices = customerContactServices;
         }
 
         // =========================================
@@ -153,6 +169,10 @@ namespace Api.Controllers
             {
                 var auditLogs = _adminService.AuditLogs() ?? Enumerable.Empty<Core.Domain.Auditing.AuditLog>();
 
+                // NOTE: removed ContactNumber/TaxAmount from this mapping - an audit log
+                // entry tracking field-level changes has no sensible reason to carry a
+                // contact number or tax amount, and these almost certainly don't exist on
+                // the real AuditLog entity/DTO. Reverted to the previously-verified mapping.
                 var auditLogsDto = auditLogs.Select(log => new AuditLog
                 {
                     Id = log.Id,
@@ -186,6 +206,8 @@ namespace Api.Controllers
             {
                 var users = _securityService.GetAllUser() ?? Enumerable.Empty<Core.Domain.Security.User>();
 
+                // NOTE: removed ContactNumber/TaxAmount - not part of the previously
+                // verified User mapping and likely don't exist on the real entity/DTO.
                 var usersDto = users.Select(user => new User
                 {
                     Id = user.Id,
@@ -216,6 +238,9 @@ namespace Api.Controllers
             {
                 var roles = _securityService.GetAllSecurityRole() ?? Enumerable.Empty<Core.Domain.Security.SecurityRole>();
 
+                // NOTE: reverted Firstname/LastName/ContactNumber/TaxAmount - a Permission
+                // (e.g. "CanEditInvoice") is not a person and has no sensible reason to carry
+                // a name, contact number, or tax amount. Restored the original Name mapping.
                 var rolesDto = roles.Select(role => new Role
                 {
                     Id = role.Id,
