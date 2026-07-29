@@ -1,20 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Services.Sales;
 using Services.Purchasing;
 
-
 namespace Api.Controllers
 {
     [Route("api/[controller]")]
+    [ApiController]
     public class ContactController : BaseController
     {
-
         private readonly ISalesService _salesService;
         private readonly IPurchasingService _purchasingService;
+
+        // Party type constants for readability
+        private const int PartyTypeCustomer = 1;
+        private const int PartyTypeVendor = 2;
+
         public ContactController(ISalesService salesService, IPurchasingService purchasingService)
         {
             _salesService = salesService;
@@ -25,141 +28,228 @@ namespace Api.Controllers
         [Route("Contacts")]
         public IActionResult Contacts(int partyId = 0, int partyType = 0)
         {
+            if (partyId <= 0)
+            {
+                return BadRequest("partyId is required.");
+            }
+
             var contactsDto = new List<Dto.Common.Contact>();
-            if (partyType == 1) // for customer
+
+            if (partyType == PartyTypeCustomer)
             {
                 var customer = _salesService.GetCustomerById(partyId);
-                var customerContact = customer.CustomerContact;
-                foreach (var contact in customerContact.Select(a => a.Contact).ToList())
-                    contactsDto.Add(new Dto.Common.Contact() { Id = contact.Id, FirstName = contact.FirstName, LastName = contact.LastName, HoldingPartyId = partyId, HoldingPartyType = 1 });
+                if (customer?.CustomerContact == null)
+                {
+                    return Ok(contactsDto);
+                }
+
+                foreach (var contact in customer.CustomerContact
+                             .Where(cc => cc.Contact != null)
+                             .Select(cc => cc.Contact))
+                {
+                    contactsDto.Add(new Dto.Common.Contact
+                    {
+                        Id = contact.Id,
+                        FirstName = contact.FirstName,
+                        LastName = contact.LastName,
+                        HoldingPartyId = partyId,
+                        HoldingPartyType = PartyTypeCustomer
+                    });
+                }
+            }
+            else if (partyType == PartyTypeVendor)
+            {
+                var vendor = _purchasingService.GetVendorById(partyId);
+                if (vendor?.VendorContact == null)
+                {
+                    return Ok(contactsDto);
+                }
+
+                foreach (var contact in vendor.VendorContact
+                             .Where(vc => vc.Contact != null)
+                             .Select(vc => vc.Contact))
+                {
+                    contactsDto.Add(new Dto.Common.Contact
+                    {
+                        Id = contact.Id,
+                        FirstName = contact.FirstName,
+                        LastName = contact.LastName,
+                        HoldingPartyId = partyId,
+                        HoldingPartyType = PartyTypeVendor
+                    });
+                }
             }
             else
             {
-                var vendor = _purchasingService.GetVendorById(partyId);
-                var vendorContact = vendor.VendorContact;       
-                foreach (var contact in vendorContact.Select(a => a.Contact).ToList())
-                    contactsDto.Add(new Dto.Common.Contact() { Id = contact.Id, FirstName = contact.FirstName, LastName = contact.LastName, HoldingPartyId = partyId, HoldingPartyType = 2 });
-
-                return Ok(contactsDto.AsEnumerable());
-
+                return BadRequest("Invalid partyType. Use 1 for Customer or 2 for Vendor.");
             }
-            return Ok(contactsDto.AsEnumerable());
+
+            return Ok(contactsDto);
         }
- 
+
         [HttpGet]
         [Route("Contact")]
         public IActionResult Contact(int id, int partyId, int partyType)
         {
-            Core.Domain.Contact contact = _salesService.GetContacyById(id);
- 
-            var contactDto = new Dto.Common.Contact();
-            var partyDto = new Dto.Common.Party();
+            if (id <= 0)
+            {
+                return BadRequest("id is required.");
+            }
 
-            partyDto.Email = contact.Party.Email;
-            partyDto.Fax = contact.Party.Fax;
-            partyDto.Phone = contact.Party.Phone;
-            partyDto.Website = contact.Party.Website;
-            partyDto.Id = contact.Party.Id;
+            // NOTE: Method name has a typo in the original service (GetContacyById).
+            // Corrected here to the expected name. Change back if the service really uses the typo.
+            var contact = _salesService.GetContactById(id);
+            if (contact == null)
+            {
+                return NotFound($"Contact with id {id} not found.");
+            }
 
-            contactDto.FirstName = contact.FirstName;
-            contactDto.LastName = contact.LastName;
-            contactDto.Id = contact.Id;
-            contactDto.Party = partyDto;
+            var contactDto = new Dto.Common.Contact
+            {
+                Id = contact.Id,
+                FirstName = contact.FirstName,
+                LastName = contact.LastName,
+                MiddleName = contact.MiddleName,
+                HoldingPartyId = partyId,
+                HoldingPartyType = partyType,
+                Party = contact.Party == null
+                    ? null
+                    : new Dto.Common.Party
+                    {
+                        Id = contact.Party.Id,
+                        Email = contact.Party.Email,
+                        Fax = contact.Party.Fax,
+                        Phone = contact.Party.Phone,
+                        Website = contact.Party.Website
+                    }
+            };
 
-            contactDto.HoldingPartyType = partyType;
-            contactDto.HoldingPartyId = partyId;
-
-
-            //contactDto.Party = contact.Party;
-            return new ObjectResult(contactDto);
-
+            return Ok(contactDto);
         }
-
 
         [HttpPost]
         [Route("SaveContact")]
-        public IActionResult SaveContact([FromBody]Dto.Common.Contact model)
+        public IActionResult SaveContact([FromBody] Dto.Common.Contact model)
         {
-            string[] errors = null;
+            if (model == null)
+            {
+                return BadRequest("Contact data is required.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             try
             {
-                Core.Domain.Contact contact = null;
-
+                Core.Domain.Contact contact;
 
                 if (model.Id == 0)
                 {
-                    contact = new Core.Domain.Contact();
-                    contact.Party = new Core.Domain.Party()
+                    contact = new Core.Domain.Contact
                     {
-                        PartyType = Core.Domain.PartyTypes.Customer,
+                        Party = new Core.Domain.Party
+                        {
+                            // Set correct PartyType based on holding party
+                            PartyType = model.HoldingPartyType == PartyTypeCustomer
+                                ? Core.Domain.PartyTypes.Customer
+                                : Core.Domain.PartyTypes.Vendor
+                        }
                     };
                 }
                 else
                 {
-                    contact = _salesService.GetContacyById(model.Id);
+                    contact = _salesService.GetContactById(model.Id);
+                    if (contact == null)
+                    {
+                        return NotFound($"Contact with id {model.Id} not found.");
+                    }
                 }
-                //Contact
+
+                // Map Contact fields
                 contact.Id = model.Id;
-                contact.ContactType = (Core.Domain.ContactTypes)model.HoldingPartyType; // customer or vendor
+                contact.ContactType = (Core.Domain.ContactTypes)model.HoldingPartyType;
                 contact.FirstName = model.FirstName;
                 contact.MiddleName = model.MiddleName;
                 contact.LastName = model.LastName;
-                //Party
- 
-                contact.Party.Website = model.Party.Website;
-                contact.Party.Email = model.Party.Email;
-                contact.Party.Phone = model.Party.Phone;
-                 
+
+                // Map Party fields (guard against null Party from client)
+                if (model.Party != null)
+                {
+                    contact.Party.Website = model.Party.Website;
+                    contact.Party.Email = model.Party.Email;
+                    contact.Party.Phone = model.Party.Phone;
+                    contact.Party.Fax = model.Party.Fax;
+                }
+
                 if (contact.Id > 0)
                 {
                     _salesService.SaveContact(contact);
-                    //_salesService.UpdateContact(contact);
                 }
                 else
                 {
-
-                    if (model.HoldingPartyType == 1)
+                    if (model.HoldingPartyType == PartyTypeCustomer)
                     {
-
                         var customer = _salesService.GetCustomerById(model.HoldingPartyId);
+                        if (customer == null)
+                        {
+                            return NotFound($"Customer with id {model.HoldingPartyId} not found.");
+                        }
 
                         if (customer.PrimaryContact == null)
                         {
                             customer.PrimaryContact = contact;
                         }
 
-                        var customerContact = new Core.Domain.CustomerContact();
-                        customerContact.Contact = contact;
-                        customerContact.Contact.Party = contact.Party;
-                        customerContact.CustomerId = customer.Id;
-                        customer.CustomerContact.Add(customerContact);
-                        _salesService.UpdateCustomer(customer);
+                        var customerContact = new Core.Domain.CustomerContact
+                        {
+                            Contact = contact,
+                            CustomerId = customer.Id
+                        };
 
+                        customer.CustomerContact ??= new List<Core.Domain.CustomerContact>();
+                        customer.CustomerContact.Add(customerContact);
+
+                        _salesService.UpdateCustomer(customer);
                     }
-                    else
+                    else if (model.HoldingPartyType == PartyTypeVendor)
                     {
                         var vendor = _purchasingService.GetVendorById(model.HoldingPartyId);
+                        if (vendor == null)
+                        {
+                            return NotFound($"Vendor with id {model.HoldingPartyId} not found.");
+                        }
 
                         if (vendor.PrimaryContact == null)
                         {
                             vendor.PrimaryContact = contact;
                         }
 
-                        var vendorContact = new Core.Domain.VendorContact();
-                        vendorContact.Contact = contact;
-                        vendorContact.Contact.Party = contact.Party;
-                        vendorContact.VendorId = vendor.Id;
-                        vendor.VendorContact.Add(vendorContact);
-                        _purchasingService.UpdateVendor(vendor);
+                        var vendorContact = new Core.Domain.VendorContact
+                        {
+                            Contact = contact,
+                            VendorId = vendor.Id
+                        };
 
+                        vendor.VendorContact ??= new List<Core.Domain.VendorContact>();
+                        vendor.VendorContact.Add(vendorContact);
+
+                        _purchasingService.UpdateVendor(vendor);
+                    }
+                    else
+                    {
+                        return BadRequest("Invalid HoldingPartyType. Use 1 for Customer or 2 for Vendor.");
                     }
                 }
-                return new ObjectResult(Ok());
+
+                return Ok();
             }
             catch (Exception ex)
             {
-                errors = new string[1] { ex.InnerException != null ? ex.InnerException.Message : ex.Message };
-                return new BadRequestObjectResult(errors);
+                // In production you should log the full exception
+                var message = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new[] { message });
             }
         }
     }

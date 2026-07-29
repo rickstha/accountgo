@@ -9,12 +9,14 @@ using System.Linq;
 namespace Api.Controllers
 {
     [Route("api/[controller]")]
+    [ApiController]
     public class FinancialsController : BaseController
     {
         private readonly IAdministrationService _adminService;
         private readonly IFinancialService _financialService;
 
-        public FinancialsController(IAdministrationService adminService,
+        public FinancialsController(
+            IAdministrationService adminService,
             IFinancialService financialService)
         {
             _adminService = adminService;
@@ -22,44 +24,51 @@ namespace Api.Controllers
         }
 
         [HttpGet]
-        [Route("CashBanks")] // api/Financials/CashBanks
+        [Route("CashBanks")]
         public IActionResult CashBanks()
         {
             var cashAndBanks = _financialService.GetCashAndBanks();
-            var cashAndBanksDto = new List<Bank>();
-
-            foreach (var bank in cashAndBanks)
+            if (cashAndBanks == null)
             {
-                cashAndBanksDto.Add(new Bank()
-                {
-                    Id = bank.Id,
-                    Name = bank.Name,
-                    AccountNo = bank.Number,
-                    BankName = bank.BankName
-                });
+                return Ok(new List<Bank>());
             }
 
-            return new ObjectResult(cashAndBanksDto);
+            var cashAndBanksDto = cashAndBanks.Select(bank => new Bank
+            {
+                Id = bank.Id,
+                Name = bank.Name,
+                AccountNo = bank.Number,
+                BankName = bank.BankName
+            }).ToList();
+
+            return Ok(cashAndBanksDto);
         }
 
         [HttpGet]
-        [Route("Accounts")] // api/Financials/Accounts
+        [Route("Accounts")]
         public IActionResult Accounts()
         {
-            var accounts = _financialService.GetAccounts().ToList();
-
+            var accounts = _financialService.GetAccounts()?.ToList() ?? new List<Core.Domain.Financials.Account>();
             var accountTree = BuildAccountGrouping(accounts, null);
-
-            return new ObjectResult(accountTree);
+            return Ok(accountTree);
         }
 
         [HttpGet]
         [Route("Account")]
         public IActionResult Account(int id)
         {
-            var account = _financialService.GetAccount(id);
+            if (id <= 0)
+            {
+                return BadRequest("A valid account id is required.");
+            }
 
-            var accountDto = new Dto.Financial.Account()
+            var account = _financialService.GetAccount(id);
+            if (account == null)
+            {
+                return NotFound($"Account with id {id} not found.");
+            }
+
+            var accountDto = new Account
             {
                 Id = account.Id,
                 AccountClassId = account.AccountClassId,
@@ -75,128 +84,98 @@ namespace Api.Controllers
                 CreditBalance = account.CreditBalance
             };
 
-            return new ObjectResult(accountDto);
+            return Ok(accountDto);
         }
 
-
         [HttpGet]
-        [Route("JournalEntries")] // api/Financials/JournalEntries
+        [Route("JournalEntries")]
         public IActionResult JournalEntries()
         {
             var journalEntries = _financialService.GetJournalEntries();
+            if (journalEntries == null)
+            {
+                return Ok(new List<JournalEntry>());
+            }
+
             var journalEntriesDto = new List<JournalEntry>();
 
             foreach (var je in journalEntries)
             {
-                var journalEntryDto = new JournalEntry()
-                {
-                    Id = je.Id,
-                    JournalDate = je.Date,
-                    Memo = je.Memo,
-                    ReferenceNo = je.ReferenceNo,
-                    VoucherType = (int)je.VoucherType.GetValueOrDefault(),
-                    Posted = je.Posted
-                };
-
-                foreach (var line in je.JournalEntryLines)
-                {
-                    var lineDto = new JournalEntryLine()
-                    {
-                        Id = line.Id,
-                        AccountId = line.AccountId,
-                        Amount = line.Amount,
-                        DrCr = (int)line.DrCr,
-                        Memo = line.Memo
-                    };
-
-                    journalEntryDto.JournalEntryLines.Add(lineDto);
-                }
-
+                var journalEntryDto = MapJournalEntryToDto(je);
                 journalEntriesDto.Add(journalEntryDto);
             }
 
-            return new ObjectResult(journalEntriesDto);
+            return Ok(journalEntriesDto);
         }
 
         [HttpGet]
         [Route("JournalEntry")]
         public IActionResult JournalEntry(int id)
         {
-            var je = _financialService.GetJournalEntry(id);
-
-            var journalEntryDto = new JournalEntry()
+            if (id <= 0)
             {
-                Id = je.Id,
-                JournalDate = je.Date,
-                Memo = je.Memo,
-                ReferenceNo = je.ReferenceNo,
-                VoucherType = (int)je.VoucherType.GetValueOrDefault(),
-                Posted = je.Posted
-            };
-
-            foreach (var line in je.JournalEntryLines)
-            {
-                var lineDto = new JournalEntryLine()
-                {
-                    Id = line.Id,
-                    AccountId = line.AccountId,
-                    Amount = line.Amount,
-                    DrCr = (int)line.DrCr,
-                    Memo = line.Memo
-                };
-
-                journalEntryDto.JournalEntryLines.Add(lineDto);
+                return BadRequest("A valid journal entry id is required.");
             }
 
-            // is this journal entry ready for posting?
+            var je = _financialService.GetJournalEntry(id);
+            if (je == null)
+            {
+                return NotFound($"Journal entry with id {id} not found.");
+            }
+
+            var journalEntryDto = MapJournalEntryToDto(je);
+
+            // Determine if ready for posting
             if (!journalEntryDto.Posted.GetValueOrDefault()
+                && journalEntryDto.JournalEntryLines != null
                 && journalEntryDto.JournalEntryLines.Count >= 2)
             {
                 var debitAmount = journalEntryDto.JournalEntryLines
-                    .Where(x => x.DrCr == 0)
+                    .Where(x => x.DrCr == (int)Core.Domain.DrOrCrSide.Dr)
                     .Sum(x => x.Amount ?? 0);
+
                 var creditAmount = journalEntryDto.JournalEntryLines
-                    .Where(x => x.DrCr == 1)
+                    .Where(x => x.DrCr == (int)Core.Domain.DrOrCrSide.Cr)
                     .Sum(x => x.Amount ?? 0);
-                
-                if (debitAmount == creditAmount)
+
+                if (debitAmount == creditAmount && debitAmount != 0)
                 {
                     journalEntryDto.ReadyForPosting = true;
                 }
             }
 
-            return new ObjectResult(journalEntryDto);
+            return Ok(journalEntryDto);
         }
 
         [HttpPost]
         [Route("PostJournalEntry")]
         public IActionResult PostJournalEntry([FromBody] JournalEntry journalEntryDto)
         {
-            string[] errors = null;
+            if (journalEntryDto == null || journalEntryDto.Id <= 0)
+            {
+                return BadRequest("A valid journal entry is required.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
             try
             {
-                if (!ModelState.IsValid)
+                var je = _financialService.GetJournalEntry(journalEntryDto.Id, false);
+                if (je == null)
                 {
-                    var errorList = new List<string>();
-                    foreach (var val in ModelState.Values)
-                        foreach (var err in val.Errors)
-                            errorList.Add(err.ErrorMessage);
-                    errors = errorList.ToArray();
-
-                    return new BadRequestObjectResult(errors);
+                    return NotFound($"Journal entry with id {journalEntryDto.Id} not found.");
                 }
 
-                var je = _financialService.GetJournalEntry(journalEntryDto.Id, false);
-
                 _financialService.UpdateJournalEntry(je, true);
-
-                return new OkObjectResult(Ok());
+                return Ok();
             }
             catch (Exception ex)
             {
-                errors = new string[1] { ex.InnerException != null ? ex.InnerException.Message : ex.Message };
-                return new BadRequestObjectResult(errors);
+                var message = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new[] { message });
             }
         }
 
@@ -204,35 +183,67 @@ namespace Api.Controllers
         [Route("SaveJournalEntry")]
         public IActionResult SaveJournalEntry([FromBody] JournalEntry journalEntryDto)
         {
-            string[] errors = null;
+            if (journalEntryDto == null)
+            {
+                return BadRequest("Journal entry data is required.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (journalEntryDto.JournalEntryLines == null || journalEntryDto.JournalEntryLines.Count == 0)
+            {
+                return BadRequest("At least one journal entry line is required.");
+            }
 
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    var errorList = new List<string>();
-                    foreach (var val in ModelState.Values)
-                        foreach (var err in val.Errors)
-                            errorList.Add(err.ErrorMessage);
-                    errors = errorList.ToArray();
+                // Duplicate account check
+                var anyDuplicate = journalEntryDto.JournalEntryLines
+                    .Where(x => x.AccountId.HasValue)
+                    .GroupBy(x => x.AccountId)
+                    .Any(g => g.Count() > 1);
 
-                    return new BadRequestObjectResult(errors);
+                if (anyDuplicate)
+                {
+                    return BadRequest(new[] { "One or more journal entry lines has a duplicate account." });
                 }
 
-                var anyDuplicate = journalEntryDto.JournalEntryLines.GroupBy(x => x.AccountId).Any(g => g.Count() > 1);
-                if (anyDuplicate)
-                    throw new Exception("One or more journal entry lines has duplicate account.");
+                // Basic balance check
+                var debitSum = journalEntryDto.JournalEntryLines
+                    .Where(x => x.DrCr == (int)Core.Domain.DrOrCrSide.Dr)
+                    .Sum(x => x.Amount ?? 0);
+
+                var creditSum = journalEntryDto.JournalEntryLines
+                    .Where(x => x.DrCr == (int)Core.Domain.DrOrCrSide.Cr)
+                    .Sum(x => x.Amount ?? 0);
+
+                if (debitSum != creditSum)
+                {
+                    return BadRequest(new[] { "Journal entry is not balanced. Debits must equal credits." });
+                }
 
                 bool isNew = journalEntryDto.Id == 0;
-                Core.Domain.Financials.JournalEntryHeader journalEntry = null;
+                Core.Domain.Financials.JournalEntryHeader journalEntry;
 
                 if (isNew)
                 {
-                    journalEntry = new Core.Domain.Financials.JournalEntryHeader();
+                    journalEntry = new Core.Domain.Financials.JournalEntryHeader
+                    {
+                        JournalEntryLines = new List<Core.Domain.Financials.JournalEntryLine>()
+                    };
                 }
                 else
                 {
                     journalEntry = _financialService.GetJournalEntry(journalEntryDto.Id, false);
+                    if (journalEntry == null)
+                    {
+                        return NotFound($"Journal entry with id {journalEntryDto.Id} not found.");
+                    }
+
+                    journalEntry.JournalEntryLines ??= new List<Core.Domain.Financials.JournalEntryLine>();
                 }
 
                 journalEntry.Date = journalEntryDto.JournalDate;
@@ -240,13 +251,15 @@ namespace Api.Controllers
                 journalEntry.ReferenceNo = journalEntryDto.ReferenceNo;
                 journalEntry.Memo = journalEntryDto.Memo;
 
+                // Update / add lines
+                var incomingLineIds = new HashSet<int>();
+
                 foreach (var line in journalEntryDto.JournalEntryLines)
                 {
-                    if (!isNew)
+                    if (!isNew && line.Id != 0)
                     {
                         var existingLine = journalEntry.JournalEntryLines
-                            .Where(j => j.Id == line.Id && line.Id != 0)
-                            .FirstOrDefault();
+                            .FirstOrDefault(j => j.Id == line.Id);
 
                         if (existingLine != null)
                         {
@@ -254,25 +267,32 @@ namespace Api.Controllers
                             existingLine.DrCr = (Core.Domain.DrOrCrSide)line.DrCr;
                             existingLine.Amount = line.Amount.GetValueOrDefault();
                             existingLine.Memo = line.Memo;
-                        }
-                        else
-                        {
-                            var journalLine = new Core.Domain.Financials.JournalEntryLine();
-                            journalLine.AccountId = line.AccountId.GetValueOrDefault();
-                            journalLine.DrCr = (Core.Domain.DrOrCrSide)line.DrCr;
-                            journalLine.Amount = line.Amount.GetValueOrDefault();
-                            journalLine.Memo = line.Memo;
-                            journalEntry.JournalEntryLines.Add(journalLine);
+                            incomingLineIds.Add(existingLine.Id);
+                            continue;
                         }
                     }
-                    else
+
+                    // New line
+                    var journalLine = new Core.Domain.Financials.JournalEntryLine
                     {
-                        var journalLine = new Core.Domain.Financials.JournalEntryLine();
-                        journalLine.AccountId = line.AccountId.GetValueOrDefault();
-                        journalLine.DrCr = (Core.Domain.DrOrCrSide)line.DrCr;
-                        journalLine.Amount = line.Amount.GetValueOrDefault();
-                        journalLine.Memo = line.Memo;
-                        journalEntry.JournalEntryLines.Add(journalLine);
+                        AccountId = line.AccountId.GetValueOrDefault(),
+                        DrCr = (Core.Domain.DrOrCrSide)line.DrCr,
+                        Amount = line.Amount.GetValueOrDefault(),
+                        Memo = line.Memo
+                    };
+                    journalEntry.JournalEntryLines.Add(journalLine);
+                }
+
+                // Remove lines that are no longer present (only for updates)
+                if (!isNew)
+                {
+                    var linesToRemove = journalEntry.JournalEntryLines
+                        .Where(l => l.Id != 0 && !incomingLineIds.Contains(l.Id))
+                        .ToList();
+
+                    foreach (var line in linesToRemove)
+                    {
+                        journalEntry.JournalEntryLines.Remove(line);
                     }
                 }
 
@@ -285,84 +305,120 @@ namespace Api.Controllers
                     _financialService.UpdateJournalEntry(journalEntry, false);
                 }
 
-                return new OkObjectResult(Ok());
+                return Ok();
             }
             catch (Exception ex)
             {
-                errors = new string[1] { ex.InnerException != null ? ex.InnerException.Message : ex.Message };
-                return new BadRequestObjectResult(errors);
+                var message = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new[] { message });
             }
         }
 
         [HttpGet]
         [Route("GeneralLedger")]
-        public ActionResult GeneralLedger(DateTime? from = default(DateTime?),
-            DateTime? to = default(DateTime?),
+        public IActionResult GeneralLedger(
+            DateTime? from = null,
+            DateTime? to = null,
             string accountCode = null,
             int? transactionNo = null)
         {
-            var Dto = _financialService.MasterGeneralLedger(from, to, accountCode, transactionNo);
-
-            var generalLedgerTree = BuildMasterGeneralLedger(Dto);
-
-            return new ObjectResult(generalLedgerTree);
-
+            var ledger = _financialService.MasterGeneralLedger(from, to, accountCode, transactionNo);
+            var generalLedgerTree = BuildMasterGeneralLedger(ledger);
+            return Ok(generalLedgerTree);
         }
 
         [HttpGet]
         [Route("trialbalance")]
-        public ActionResult TrialBalance()
+        public IActionResult TrialBalance()
         {
-            var Dto = _financialService.TrialBalance();
-            return new ObjectResult(Dto);
+            var dto = _financialService.TrialBalance();
+            return Ok(dto);
         }
 
         [HttpGet]
         [Route("BalanceSheet")]
-        // TODO: this generates an error a.ContraAccounts' is invalid inside an 'Include' operation
-        public ActionResult BalanceSheet()
+        // TODO: Service currently throws on Include of ContraAccounts. Fix in the service layer.
+        public IActionResult BalanceSheet()
         {
-            var Dto = _financialService.BalanceSheet().ToList();
-            var dt = Helpers.CollectionHelper.ConvertTo<BalanceSheet>(Dto);
-            var incomestatement = _financialService.IncomeStatement();
-            var netincome = incomestatement.Where(a => a.IsExpense == false).Sum(a => a.Amount) - incomestatement.Where(a => a.IsExpense == true).Sum(a => a.Amount);
+            var dto = _financialService.BalanceSheet()?.ToList() ?? new List<BalanceSheet>();
 
-            // TODO: Add logic to get the correct account for accumulated profit/loss. Currently, the account code is hard-coded here.
-            // Solution 1: Add two columns in general ledger setting for the account id of accumulated profit and loss.
-            // Solution 2: Add column to Account table to flag if account is net income (profit and loss)
-            //if (netincome < 0)
-            //{
-            //    var loss = Dto.Where(a => a.AccountCode == "30500").FirstOrDefault();
-            //    loss.Amount = netincome;
-            //}
-            //else
-            //{
-            //    var profit = Dto.Where(a => a.AccountCode == "30400").FirstOrDefault();
-            //    profit.Amount = netincome;
-            //}
+            // Net income calculation (kept for future use when accumulated profit/loss accounts are properly configured)
+            // var incomeStatement = _financialService.IncomeStatement();
+            // var netIncome = incomeStatement.Where(a => !a.IsExpense).Sum(a => a.Amount)
+            //               - incomeStatement.Where(a => a.IsExpense).Sum(a => a.Amount);
+            // TODO: Apply netIncome to the correct accumulated profit/loss account instead of hard-coded codes.
 
-            return new ObjectResult(Dto);
+            return Ok(dto);
         }
 
         [HttpGet]
         [Route("IncomeStatement")]
-        // TODO: this generates an error a.ContraAccounts' is invalid inside an 'Include' operation
-        public ActionResult IncomeStatement()
+        // TODO: Service currently throws on Include of ContraAccounts. Fix in the service layer.
+        public IActionResult IncomeStatement()
         {
-            var Dto = _financialService.IncomeStatement();
-            return new ObjectResult(Dto);
+            var dto = _financialService.IncomeStatement();
+            return Ok(dto);
         }
 
-        #region Private Methods
-        private IList<Dto.Financial.Account> BuildAccountGrouping(IList<Core.Domain.Financials.Account> allAccounts,
-        int? parentAccountId)
+        #region Private Helpers
+
+        private static JournalEntry MapJournalEntryToDto(Core.Domain.Financials.JournalEntryHeader je)
         {
-            var accountTree = new List<Dto.Financial.Account>();
-            var childAccounts = allAccounts.Where(o => o.ParentAccountId == parentAccountId).ToList();
+            var dto = new JournalEntry
+            {
+                Id = je.Id,
+                JournalDate = je.Date,
+                Memo = je.Memo,
+                ReferenceNo = je.ReferenceNo,
+                VoucherType = (int)je.VoucherType.GetValueOrDefault(),
+                Posted = je.Posted,
+                JournalEntryLines = new List<JournalEntryLine>()
+            };
+
+            if (je.JournalEntryLines != null)
+            {
+                foreach (var line in je.JournalEntryLines)
+                {
+                    dto.JournalEntryLines.Add(new JournalEntryLine
+                    {
+                        Id = line.Id,
+                        AccountId = line.AccountId,
+                        Amount = line.Amount,
+                        DrCr = (int)line.DrCr,
+                        Memo = line.Memo
+                    });
+                }
+            }
+
+            return dto;
+        }
+
+        private IList<Account> BuildAccountGrouping(
+            IList<Core.Domain.Financials.Account> allAccounts,
+            int? parentAccountId)
+        {
+            // Pre-group for O(n) tree building instead of repeated linear searches
+            var lookup = allAccounts
+                .GroupBy(a => a.ParentAccountId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            return BuildAccountGroupingRecursive(lookup, parentAccountId);
+        }
+
+        private IList<Account> BuildAccountGroupingRecursive(
+            IDictionary<int?, List<Core.Domain.Financials.Account>> lookup,
+            int? parentAccountId)
+        {
+            var accountTree = new List<Account>();
+
+            if (!lookup.TryGetValue(parentAccountId, out var childAccounts))
+            {
+                return accountTree;
+            }
 
             foreach (var account in childAccounts)
             {
-                var accountDto = new Dto.Financial.Account()
+                var accountDto = new Account
                 {
                     Id = account.Id,
                     AccountClassId = account.AccountClassId,
@@ -375,58 +431,64 @@ namespace Api.Controllers
                     IsContraAccount = account.IsContraAccount,
                     Balance = account.Balance,
                     DebitBalance = account.DebitBalance,
-                    CreditBalance = account.CreditBalance
+                    CreditBalance = account.CreditBalance,
+                    ChildAccounts = BuildAccountGroupingRecursive(lookup, account.Id)
                 };
-                var children = BuildAccountGrouping(allAccounts, account.Id);
-                accountDto.ChildAccounts = children;
+
                 accountTree.Add(accountDto);
             }
 
             return accountTree;
         }
 
-
-        private IList<Dto.Financial.MasterGeneralLedger> BuildMasterGeneralLedger(ICollection<Services.Financial.MasterGeneralLedger> allLedger)
+        private IList<MasterGeneralLedger> BuildMasterGeneralLedger(
+            ICollection<Services.Financial.MasterGeneralLedger> allLedger)
         {
-            var ledgerTree = new List<Dto.Financial.MasterGeneralLedger>();
-
-
-            var parentLedger = allLedger.Select(a => a.TransactionNo).Distinct();
-            var childLedgers = new List<Dto.Financial.MasterGeneralLedger>();
-            parentLedger.ToList().ForEach(a =>
+            if (allLedger == null || allLedger.Count == 0)
             {
-                var childrenLedger = allLedger.Where(x => x.TransactionNo == a);
+                return new List<MasterGeneralLedger>();
+            }
 
-                var secondChild = new Dto.Financial.MasterGeneralLedger();
-                var thirdChildren = new List<Dto.Financial.MasterGeneralLedger>();
-                secondChild.GroupId = a;
-                secondChild.TransactionNo = null;
-                secondChild.Credit = null;
-                secondChild.Debit = null;
-                secondChild.Date = null;
-                foreach (var ledger in childrenLedger)
+            var result = new List<MasterGeneralLedger>();
+
+            var groups = allLedger
+                .GroupBy(x => x.TransactionNo)
+                .OrderBy(g => g.Key);
+
+            foreach (var group in groups)
+            {
+                var parent = new MasterGeneralLedger
                 {
-                    var thirdChild = new Dto.Financial.MasterGeneralLedger();
-                    thirdChild.Id = ledger.Id;
-                    thirdChild.TransactionNo = ledger.TransactionNo;
-                    thirdChild.AccountId = ledger.AccountId;
-                    thirdChild.AccountName = ledger.AccountName;
-                    thirdChild.AccountCode = ledger.AccountCode;
-                    thirdChild.CurrencyId = ledger.CurrencyId;
-                    thirdChild.Date = ledger.Date;
-                    thirdChild.Debit = ledger.Debit;
-                    thirdChild.Credit = ledger.Credit;
-                    thirdChildren.Add(thirdChild);
-                    secondChild.ChildMasterGeneralLedger = thirdChildren;
+                    GroupId = group.Key,
+                    TransactionNo = null,
+                    Credit = null,
+                    Debit = null,
+                    Date = null,
+                    ChildMasterGeneralLedger = new List<MasterGeneralLedger>()
+                };
+
+                foreach (var ledger in group)
+                {
+                    parent.ChildMasterGeneralLedger.Add(new MasterGeneralLedger
+                    {
+                        Id = ledger.Id,
+                        TransactionNo = ledger.TransactionNo,
+                        AccountId = ledger.AccountId,
+                        AccountName = ledger.AccountName,
+                        AccountCode = ledger.AccountCode,
+                        CurrencyId = ledger.CurrencyId,
+                        Date = ledger.Date,
+                        Debit = ledger.Debit,
+                        Credit = ledger.Credit
+                    });
                 }
 
-                childLedgers.Add(secondChild);
+                result.Add(parent);
+            }
 
-
-            });
-
-            return childLedgers;
+            return result;
         }
+
         #endregion
     }
 }
