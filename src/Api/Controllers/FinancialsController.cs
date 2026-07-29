@@ -48,7 +48,9 @@ namespace Api.Controllers
         [Route("Accounts")]
         public IActionResult Accounts()
         {
-            var accounts = _financialService.GetAccounts()?.ToList() ?? new List<Core.Domain.Financials.Account>();
+            var accounts = _financialService.GetAccounts()?.ToList()
+                           ?? new List<Core.Domain.Financials.Account>();
+
             var accountTree = BuildAccountGrouping(accounts, null);
             return Ok(accountTree);
         }
@@ -97,13 +99,9 @@ namespace Api.Controllers
                 return Ok(new List<JournalEntry>());
             }
 
-            var journalEntriesDto = new List<JournalEntry>();
-
-            foreach (var je in journalEntries)
-            {
-                var journalEntryDto = MapJournalEntryToDto(je);
-                journalEntriesDto.Add(journalEntryDto);
-            }
+            var journalEntriesDto = journalEntries
+                .Select(MapJournalEntryToDto)
+                .ToList();
 
             return Ok(journalEntriesDto);
         }
@@ -341,13 +339,6 @@ namespace Api.Controllers
         public IActionResult BalanceSheet()
         {
             var dto = _financialService.BalanceSheet()?.ToList() ?? new List<BalanceSheet>();
-
-            // Net income calculation (kept for future use when accumulated profit/loss accounts are properly configured)
-            // var incomeStatement = _financialService.IncomeStatement();
-            // var netIncome = incomeStatement.Where(a => !a.IsExpense).Sum(a => a.Amount)
-            //               - incomeStatement.Where(a => a.IsExpense).Sum(a => a.Amount);
-            // TODO: Apply netIncome to the correct accumulated profit/loss account instead of hard-coded codes.
-
             return Ok(dto);
         }
 
@@ -397,7 +388,7 @@ namespace Api.Controllers
             IList<Core.Domain.Financials.Account> allAccounts,
             int? parentAccountId)
         {
-            // Pre-group for O(n) tree building instead of repeated linear searches
+            // Pre-group for O(n) tree building
             var lookup = allAccounts
                 .GroupBy(a => a.ParentAccountId)
                 .ToDictionary(g => g.Key, g => g.ToList());
