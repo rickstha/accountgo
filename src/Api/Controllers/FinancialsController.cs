@@ -248,6 +248,8 @@ namespace Api.Controllers
                 journalEntry.VoucherType = (Core.Domain.JournalVoucherTypes)journalEntryDto.VoucherType.GetValueOrDefault();
                 journalEntry.ReferenceNo = journalEntryDto.ReferenceNo;
                 journalEntry.Memo = journalEntryDto.Memo;
+                journalEntry.TaxAmount = journalEntryDto.TaxAmound;
+                journalEntry.Sales = journalEntryDto.Sales;
 
                 // Update / add lines
                 var incomingLineIds = new HashSet<int>();
