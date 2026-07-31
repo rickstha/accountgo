@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Api.Controllers
 {
+  
     [ApiController]
     [Route("api/[controller]")]
     public class InventoryController : BaseController
@@ -88,24 +89,10 @@ namespace Api.Controllers
                 item.InventoryAdjustmentAccountId = itemDto.InventoryAdjustmentAccountId;
                 item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
                 item.PreferredVendorId = itemDto.PreferredVendorId;
-
-
-
-                // NOTE: removed two blocks that used to sit here:
-                //   1. item.MeasurementId / item.Quanitity / item.Discount = itemDto.ItemMeasurementId / .ItemQuantity / .ItemDsicount
-                //   2. item.Code = itemsDto.ItemCode; ... item.ItemSaleItems = itemsDto.ItemItemSaleItems;
-                // Block 2 referenced `itemsDto`, a variable that only exists in the unrelated
-                // Items() method below — this did not compile (CS0103: the name 'itemsDto'
-                // does not exist in the current context). It also duplicated fields
-                // (Code, Description, Cost, Price, PurchaseMeasurementId, ItemTaxGroupId)
-                // that are already set correctly above from `itemDto`.
-                // Block 1 referenced properties (Quanitity, ItemDsicount, MeasurementId)
-                // that don't appear anywhere else in this file's DTO/domain usage
-                // (e.g. the Item(int id) GET endpoint below has no such fields) and looked
-                // like unused/speculative leftovers rather than real requirements.
-                // If a real "quantity/discount/measurement" field is actually needed on
-                // save, it should be added back deliberately with a confirmed DTO/domain
-                // property name, not copy-pasted from another method's variable.
+                item.TaxService = itemDto.TaxServices;
+                item.ContactService = itemDto.ContactService;
+                item.UserService = itemDto.UserService;
+                item.customerContactServices = itemDto.CustomerContactServices;
 
                 if (isNew)
                 {
@@ -127,7 +114,7 @@ namespace Api.Controllers
 
                 return StatusCode(500, new
                 {
-                    message = ex.Message
+                    message = "An error occurred while saving the item."
                 });
             }
         }
@@ -142,13 +129,12 @@ namespace Api.Controllers
         {
             try
             {
-                var items = _inventoryService.GetAllItems();
+                var items = _inventoryService.GetAllItems() ?? Enumerable.Empty<Core.Domain.Items.Item>();
 
                 ICollection<Item> itemsDto = new List<Item>();
 
                 foreach (var item in items)
                 {
-                    
                     itemsDto.Add(new Item
                     {
                         Id = item.Id,
@@ -159,29 +145,35 @@ namespace Api.Controllers
                         Cost = item.Cost,
                         Price = item.Price,
                         QuantityOnHand = item.ComputeQuantityOnHand(),
-                        ItemCategoryId= item.ComputeQuantityOnHand(),
+                        // FIXED: this used to be item.ComputeQuantityOnHand() - a copy-paste
+                        // error that assigned a decimal quantity to a category ID field.
+                        ItemCategoryId = item.ItemCategoryId,
                         SmallestMeasurementId = item.SmallestMeasurementId,
                         SellMeasurementId = item.SellMeasurementId,
                         PurchaseMeasurementId = item.PurchaseMeasurementId,
                         PreferredVendorId = item.PreferredVendorId,
-                        ItemTaxGroupId =item.ItemTaxGroupId,
-                        SalesAccountId = item.salesAccount?.Sale ?? "",
+                        ItemTaxGroupId = item.ItemTaxGroupId,
+                        // FIXED: these three used to reference nonexistent nested properties
+                        // (item.salesAccount?.Sale, .CostOfGoodsSoldAccount?.Good,
+                        // .InventoryAdjustment?.Inventory) and assigned string fallbacks to
+                        // what are int? fields - matched to the correct mapping already used
+                        // in the Item(int id) method below.
+                        SalesAccountId = item.SalesAccountId,
                         InventoryAccountId = item.InventoryAccountId,
-                        CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccount?.Good ?? "",
-                        InventoryAdjustmentAccountId = item.InventoryAdjustment?.Inventory?? ""
-
+                        CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
+                        InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
                     });
                 }
 
                 return Ok(itemsDto);
-            }   
+            }
             catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Error while getting items");
 
                 return StatusCode(500, new
                 {
-                    message = ex.Message
+                    message = "An error occurred while retrieving items."
                 });
             }
         }
@@ -223,6 +215,11 @@ namespace Api.Controllers
                     InventoryAccountId = item.InventoryAccountId,
                     CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
                     InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
+                    item.TaxService = itemDto.TaxServices;
+                    item.ContactService = itemDto.ContactService;
+                    item.UserService = itemDto.UserService;
+                    item.customerContactServices = itemDto.CustomerContactServices;
+                    
                 };
 
                 return Ok(itemDto);
@@ -233,7 +230,7 @@ namespace Api.Controllers
 
                 return StatusCode(500, new
                 {
-                    message = ex.Message
+                    message = "An error occurred while retrieving the item."
                 });
             }
         }
@@ -249,7 +246,7 @@ namespace Api.Controllers
             try
             {
                 var invControlJournals =
-                    _inventoryService.GetInventoryControlJournals();
+                    _inventoryService.GetInventoryControlJournals() ?? Enumerable.Empty<Core.Domain.Items.InventoryControlJournal>();
 
                 var icjDto = new List<InventoryControlJournal>();
 
@@ -279,7 +276,7 @@ namespace Api.Controllers
 
                 return StatusCode(500, new
                 {
-                    message = ex.Message
+                    message = "An error occurred while retrieving inventory control journals."
                 });
             }
         }

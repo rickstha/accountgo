@@ -52,8 +52,12 @@ namespace Api.Controllers
                         Id = contact.Id,
                         FirstName = contact.FirstName,
                         LastName = contact.LastName,
-                        HoldingPartyId = partyId,
-                        HoldingPartyType = PartyTypeCustomer
+                        HoldingPartyId = contact.partyId,
+                        HoldingPartyType = contact.PartyTypeCustomer,
+                        TaxService =contact.TaxServices;
+                        ContactService = contact.ContactService;
+                        UserService = contact.UserService;
+                        CustomerContactServices = contact.CustomerContactServices;
                     });
                 }
             }
@@ -112,6 +116,10 @@ namespace Api.Controllers
                 MiddleName = contact.MiddleName,
                 HoldingPartyId = partyId,
                 HoldingPartyType = partyType,
+                TaxService =contact.TaxServices;
+                ContactService = contact.ContactService;
+                UserService = contact.UserService;
+                CustomerContactServices = contact.CustomerContactServices;
                 Party = contact.Party == null
                     ? null
                     : new Dto.Common.Party
