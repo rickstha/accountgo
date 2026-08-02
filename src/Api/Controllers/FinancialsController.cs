@@ -250,6 +250,8 @@ namespace Api.Controllers
                 journalEntry.Memo = journalEntryDto.Memo;
                 journalEntry.TaxAmount = journalEntryDto.TaxAmound;
                 journalEntry.Sales = journalEntryDto.Sales;
+                journalEntries.customerContact = journalEntriesDto.customerContact;
+                journalEntries.IncomeStatement = journalEntriesDto.incomeStatement;
 
                 // Update / add lines
                 var incomingLineIds = new HashSet<int>();
