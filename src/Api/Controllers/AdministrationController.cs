@@ -7,14 +7,7 @@ using Services.Inventory;
 using Services.Purchasing;
 using Services.Sales;
 using Services.Security;
-
-using Services.MainCustomer;
 using Services.TaxSystem;
-// TODO: point these at the real namespaces for these new service interfaces -
-// they weren't imported anywhere in the source file.
-using Services.Contacts;
-using Services.Users;
-using Services.CustomerContacts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,16 +29,8 @@ namespace Api.Controllers
         private readonly IPurchasingService _purchasingService;
         private readonly IInventoryService _inventoryService;
         private readonly ISecurityService _securityService;
-        // for future use backend code
-        private readonly IMainCustomerService _mainCustomerService;
         private readonly ITaxService _taxService;
         private readonly ILogger<AdministrationController> _logger;
-
-        // NOTE: not yet used anywhere in this class - injected but currently dead
-        // dependencies. Kept since they appear to be in-progress work.
-        private readonly IContactService _contactService;
-        private readonly IUserService _userService;
-        private readonly ICustomerContactService _customerContactServices;
 
         public AdministrationController(
             IAdministrationService adminService,
@@ -54,12 +39,8 @@ namespace Api.Controllers
             IPurchasingService purchasingService,
             IInventoryService inventoryService,
             ISecurityService securityService,
-            IMainCustomerService mainCustomerService,
             ITaxService taxService,
-            ILogger<AdministrationController> logger,
-            IContactService contactService,
-            IUserService userService,
-            ICustomerContactService customerContactServices)
+            ILogger<AdministrationController> logger)
         {
             _adminService = adminService;
             _financialService = financialService;
@@ -67,12 +48,8 @@ namespace Api.Controllers
             _purchasingService = purchasingService;
             _inventoryService = inventoryService;
             _securityService = securityService;
-            _mainCustomerService = mainCustomerService;
             _taxService = taxService;
             _logger = logger;
-            _contactService = contactService;
-            _userService = userService;
-            _customerContactServices = customerContactServices;
         }
 
         // =========================================
@@ -442,9 +419,7 @@ namespace Api.Controllers
                 _salesService,
                 _purchasingService,
                 _inventoryService,
-                _securityService,
-                _mainCustomerService,
-                _taxService);
+                _securityService);
         }
 
         private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole> userRoles)
