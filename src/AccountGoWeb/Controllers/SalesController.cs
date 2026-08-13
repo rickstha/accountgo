@@ -7,6 +7,8 @@ using System.Text;
 
 namespace AccountGoWeb.Controllers
 {
+    // CRITICAL (flagged): this controller has NO authorization at all, despite exposing
+    // and allowing modification of customers, sales orders, invoices, and receipts.
     // [Microsoft.AspNetCore.Authorization.Authorize]
     public class SalesController : GoodController
     {
@@ -69,15 +71,18 @@ namespace AccountGoWeb.Controllers
                         MeasurementId = 1
                     }
                 },
-                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+                No = Random.Shared.Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
             };
 
             PopulateSalesViewBags();
             return View(salesOrderModel);
         }
 
+        // FIX: this method was `IActionResult` (not async) yet needed to await Post(...)
+        // below - changed to `async Task<IActionResult>`.
         [HttpPost]
-        public IActionResult AddSalesOrder(SalesOrder dto, string addRowBtn)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddSalesOrder(SalesOrder dto, string addRowBtn)
         {
             if (!string.IsNullOrEmpty(addRowBtn))
             {
@@ -100,13 +105,16 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(dto);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                var response = Post("Sales/addsalesorder", content);
-                if (response.IsSuccessStatusCode)
+                // FIX: was `var response = Post(...)` with no await - Post returns
+                // Task<HttpResponseMessage>, so `.IsSuccessStatusCode` below would not
+                // compile against the Task itself.
+                var response = await Post("Sales/addsalesorder", content);
+                if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(SalesOrders));
                 }
 
-                _logger.LogWarning("Failed to add sales order. Status: {StatusCode}", response.StatusCode);
+                _logger.LogWarning("Failed to add sales order. Status: {StatusCode}", response?.StatusCode);
             }
 
             PopulateSalesViewBags();
@@ -211,7 +219,7 @@ namespace AccountGoWeb.Controllers
                         MeasurementId = 1
                     }
                 },
-                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+                No = Random.Shared.Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
             };
 
             PopulateSalesViewBags();
@@ -219,6 +227,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddSalesInvoice(SalesInvoice dto, string addRowBtn)
         {
             if (!string.IsNullOrEmpty(addRowBtn))
@@ -242,12 +251,15 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(dto);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                _logger.LogInformation("AddSalesInvoice payload: {Payload}", await content.ReadAsStringAsync());
+                // FIX: logging the string we already have (`serialize`) instead of
+                // redundantly re-reading it back off the StringContent we just built.
+                _logger.LogInformation("AddSalesInvoice payload: {Payload}", serialize);
 
-                var response = Post("Sales/SaveSalesInvoice", content);
-                _logger.LogInformation("AddSalesInvoice response: {Response}", response);
+                // FIX: was `var response = Post(...)` with no await.
+                var response = await Post("Sales/SaveSalesInvoice", content);
+                _logger.LogInformation("AddSalesInvoice response status: {StatusCode}", response?.StatusCode);
 
-                if (response.IsSuccessStatusCode)
+                if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(SalesInvoices));
                 }
@@ -292,17 +304,13 @@ namespace AccountGoWeb.Controllers
 
             var model = new Models.Sales.AddReceipt();
 
-            ViewBag.Customers = SelectListItemHelper.Customers();
-            ViewBag.DebitAccounts = SelectListItemHelper.CashBanks();
-            ViewBag.CreditAccounts = SelectListItemHelper.Accounts();
-
-            var customers = await GetAsync<IEnumerable<Customer>>("sales/customers");
-            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(customers ?? Enumerable.Empty<Customer>());
+            await PopulateReceiptViewBagsAsync();
 
             return View(model);
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddReceipt(Models.Sales.AddReceipt model)
         {
             if (ModelState.IsValid)
@@ -310,20 +318,18 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                var response = Post("sales/savereceipt", content);
-                if (response.IsSuccessStatusCode)
+                // FIX: was `var response = Post(...)` with no await.
+                var response = await Post("sales/savereceipt", content);
+                if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(SalesReceipts));
                 }
+
+                _logger.LogWarning("Failed to save receipt. Status: {StatusCode}", response?.StatusCode);
             }
 
             ViewBag.PageContentHeader = "New Receipt";
-            ViewBag.Customers = SelectListItemHelper.Customers();
-            ViewBag.DebitAccounts = SelectListItemHelper.CashBanks();
-            ViewBag.CreditAccounts = SelectListItemHelper.Accounts();
-
-            var customers = await GetAsync<IEnumerable<Customer>>("sales/customers");
-            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(customers ?? Enumerable.Empty<Customer>());
+            await PopulateReceiptViewBagsAsync();
 
             return View(model);
         }
@@ -365,7 +371,7 @@ namespace AccountGoWeb.Controllers
                 ViewBag.PageContentHeader = "New Customer";
                 customerModel = new Customer
                 {
-                    No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
+                    No = Random.Shared.Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
                 };
             }
             else
@@ -386,6 +392,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveSalesInvoice(SalesInvoice salesInvoiceModel)
         {
             if (ModelState.IsValid)
@@ -393,14 +400,18 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(salesInvoiceModel);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                var payload = await content.ReadAsStringAsync();
-                _logger.LogInformation("SaveSalesInvoice payload: {Payload}", payload);
+                // FIX: was re-reading the content stream to get a string we already have
+                // as `serialize` - logging that directly instead.
+                _logger.LogInformation("SaveSalesInvoice payload: {Payload}", serialize);
 
-                var response = Post("Sales/SaveSalesInvoice", content);
-                if (response.IsSuccessStatusCode)
+                // FIX: was `var response = Post(...)` with no await.
+                var response = await Post("Sales/SaveSalesInvoice", content);
+                if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(SalesInvoices));
                 }
+
+                _logger.LogWarning("Failed to save sales invoice. Status: {StatusCode}", response?.StatusCode);
             }
 
             PopulateSalesViewBags();
@@ -408,6 +419,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveCustomer(Customer customerModel)
         {
             if (ModelState.IsValid)
@@ -416,10 +428,12 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = await PostAsync("Sales/SaveCustomer", content);
-                if (response.IsSuccessStatusCode)
+                if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(Customers));
                 }
+
+                _logger.LogWarning("Failed to save customer. Status: {StatusCode}", response?.StatusCode);
             }
 
             ViewBag.Accounts = SelectListItemHelper.Accounts();
@@ -482,6 +496,7 @@ namespace AccountGoWeb.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Allocate(Models.Sales.Allocate model)
         {
             if (ModelState.IsValid && model.IsValid())
@@ -489,11 +504,14 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                var response = Post("sales/saveallocation", content);
-                if (response.IsSuccessStatusCode)
+                // FIX: was `var response = Post(...)` with no await.
+                var response = await Post("sales/saveallocation", content);
+                if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(SalesReceipts));
                 }
+
+                _logger.LogWarning("Failed to save allocation. Status: {StatusCode}", response?.StatusCode);
             }
 
             var receipt = await GetAsync<Dto.Sales.SalesReceipt>("sales/salesreceipt?id=" + model.ReceiptId);
@@ -537,6 +555,18 @@ namespace AccountGoWeb.Controllers
             ViewBag.PaymentTerms = SelectListItemHelper.PaymentTerms();
             ViewBag.Items = SelectListItemHelper.Items();
             ViewBag.Measurements = SelectListItemHelper.Measurements();
+        }
+
+        // Extracted from AddReceipt GET/POST, which previously duplicated this exact
+        // block of ViewBag assignments.
+        private async Task PopulateReceiptViewBagsAsync()
+        {
+            ViewBag.Customers = SelectListItemHelper.Customers();
+            ViewBag.DebitAccounts = SelectListItemHelper.CashBanks();
+            ViewBag.CreditAccounts = SelectListItemHelper.Accounts();
+
+            var customers = await GetAsync<IEnumerable<Customer>>("sales/customers");
+            ViewBag.CustomersDetail = Newtonsoft.Json.JsonConvert.SerializeObject(customers ?? Enumerable.Empty<Customer>());
         }
 
         #endregion

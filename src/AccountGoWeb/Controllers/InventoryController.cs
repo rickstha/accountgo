@@ -1,12 +1,11 @@
 ﻿using Dto.Inventory;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System.Net.Http.Headers;
 using System.Text;
 
 namespace AccountGoWeb.Controllers
 {
-    // [Microsoft.AspNetCore.Authorization.Authorize]
+    
     public class InventoryController : BaseController
     {
         private readonly ILogger<InventoryController> _logger;
@@ -122,6 +121,11 @@ namespace AccountGoWeb.Controllers
         [HttpPost]
         public async Task<IActionResult> AddItem(Item itemModel)
         {
+            if (itemModel == null)
+            {
+                return BadRequest();
+            }
+
             ViewBag.PageContentHeader = "New Item";
 
             if (ModelState.IsValid)
@@ -131,7 +135,8 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(itemModel);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                var response = await Post("Inventory/SaveItem", content);
+                // Consistent casing with SaveItem
+                var response = await Post("inventory/saveitem", content);
                 _logger.LogInformation("AddItem response: {Response}", response);
 
                 if (response.IsSuccessStatusCode)
@@ -149,6 +154,11 @@ namespace AccountGoWeb.Controllers
         [HttpPost]
         public async Task<IActionResult> SaveItem(Item itemModel)
         {
+            if (itemModel == null)
+            {
+                return BadRequest();
+            }
+
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(itemModel);
@@ -169,7 +179,7 @@ namespace AccountGoWeb.Controllers
 
             ViewBag.PageContentHeader = itemModel.Id > 0 ? "Item Card" : "New Item";
 
-            // Return the Item view (not Index) so the user can correct the data
+            // Return the Item view so the user can correct the data
             return View("Item", itemModel);
         }
 

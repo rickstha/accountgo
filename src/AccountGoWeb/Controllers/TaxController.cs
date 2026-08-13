@@ -10,8 +10,9 @@ namespace AccountGoWeb.Controllers
             _baseConfig = config;
         }
 
-        public IActionResult Index() {
-            return RedirectToAction("taxes");
+        public IActionResult Index()
+        {
+            return RedirectToAction("Taxes");
         }
 
         public async Task<IActionResult> Taxes()
@@ -38,6 +39,70 @@ namespace AccountGoWeb.Controllers
             }
 
             return View();
+        }
+
+        // =====================================================
+        // GENERATE TAX FOR CUSTOMER
+        // =====================================================
+
+        [HttpGet]
+        public IActionResult GenerateTax()
+        {
+            ViewBag.PageContentHeader = "Generate Tax For Customer";
+
+            ViewBag.Customers = Models.SelectListItemHelper.Customers();
+            ViewBag.Items = Models.SelectListItemHelper.Items();
+
+            return View(new Models.TaxSystem.GenerateTaxViewModel());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateTax(Models.TaxSystem.GenerateTaxViewModel model)
+        {
+            ViewBag.PageContentHeader = "Generate Tax For Customer";
+            ViewBag.Customers = Models.SelectListItemHelper.Customers();
+            ViewBag.Items = Models.SelectListItemHelper.Items();
+
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            if (model.CustomerId <= 0)
+            {
+                ModelState.AddModelError(string.Empty, "Please select a customer.");
+                return View(model);
+            }
+
+            if (model.ItemId <= 0)
+            {
+                ModelState.AddModelError(string.Empty, "Please select an item.");
+                return View(model);
+            }
+
+            
+            var query = "tax/generatetaxforcustomer" +
+                        $"?customerId={model.CustomerId}" +
+                        $"&itemId={model.ItemId}" +
+                        $"&amount={model.Amount}" +
+                        $"&quantity={model.Quantity.GetValueOrDefault(1)}" +
+                        $"&discount={model.Discount.GetValueOrDefault(0)}";
+
+            var result = await GetAsync<Models.TaxSystem.GenerateTaxViewModel>(query);
+
+            if (result == null)
+            {
+                ModelState.AddModelError(string.Empty, "Failed to generate tax for the selected customer.");
+                return View(model);
+            }
+
+            model.TaxAmount = result.TaxAmount;
+            model.TotalAmountAfterTax = result.TotalAmountAfterTax;
+            model.CustomerName = result.CustomerName;
+            model.ItemDescription = result.ItemDescription;
+
+            return View(model);
         }
     }
 }
