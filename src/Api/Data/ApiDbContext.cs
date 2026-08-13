@@ -320,9 +320,6 @@ namespace Api.Data
                 }
                 catch
                 {
-                    // Swallow so a single entity's audit failure doesn't block the whole save.
-                    // RecordId assignment for newly-added entities happens later in
-                    // UpdateAuditLogRecordId, once the entity's key is available post-SaveChanges.
                     continue;
                 }
             }
