@@ -14,10 +14,10 @@ using System.Linq;
 
 namespace Api.Controllers
 {
-    // CRITICAL (flagged, regression from a previous fix): this controller has NO
-    // authorization at all. Given that Clear() wipes the database and Setup()/Users()/
-    // Roles()/Groups() expose destructive operations and full user/PII data, this should
-    // be a REAL, enabled authorization check before going anywhere near production.
+    // CRITICAL: This controller currently has NO authorization.
+    // Clear() wipes the database. Setup(), Users(), Roles(), Groups() expose
+    // destructive operations and full user/PII data.
+    // Enable a real authorization check before production, e.g.:
     // [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController]
@@ -56,7 +56,8 @@ namespace Api.Controllers
         // SETUP
         // =========================================
 
-        [HttpGet("setup")]
+        // Destructive / one-time operation → POST (not GET)
+        [HttpPost("setup")]
         public IActionResult Setup()
         {
             try
@@ -82,7 +83,8 @@ namespace Api.Controllers
         // CLEAR DATABASE
         // =========================================
 
-        [HttpGet("clear")]
+        // Extremely destructive → POST (not GET)
+        [HttpPost("clear")]
         public IActionResult Clear()
         {
             try
@@ -144,12 +146,9 @@ namespace Api.Controllers
         {
             try
             {
-                var auditLogs = _adminService.AuditLogs() ?? Enumerable.Empty<Core.Domain.Auditing.AuditLog>();
+                var auditLogs = _adminService.AuditLogs()
+                                ?? Enumerable.Empty<Core.Domain.Auditing.AuditLog>();
 
-                // NOTE: removed ContactNumber/TaxAmount from this mapping - an audit log
-                // entry tracking field-level changes has no sensible reason to carry a
-                // contact number or tax amount, and these almost certainly don't exist on
-                // the real AuditLog entity/DTO. Reverted to the previously-verified mapping.
                 var auditLogsDto = auditLogs.Select(log => new AuditLog
                 {
                     Id = log.Id,
@@ -181,10 +180,9 @@ namespace Api.Controllers
         {
             try
             {
-                var users = _securityService.GetAllUser() ?? Enumerable.Empty<Core.Domain.Security.User>();
+                var users = _securityService.GetAllUser()
+                            ?? Enumerable.Empty<Core.Domain.Security.User>();
 
-                // NOTE: removed ContactNumber/TaxAmount - not part of the previously
-                // verified User mapping and likely don't exist on the real entity/DTO.
                 var usersDto = users.Select(user => new User
                 {
                     Id = user.Id,
@@ -213,11 +211,9 @@ namespace Api.Controllers
         {
             try
             {
-                var roles = _securityService.GetAllSecurityRole() ?? Enumerable.Empty<Core.Domain.Security.SecurityRole>();
+                var roles = _securityService.GetAllSecurityRole()
+                            ?? Enumerable.Empty<Core.Domain.Security.SecurityRole>();
 
-                // NOTE: reverted Firstname/LastName/ContactNumber/TaxAmount - a Permission
-                // (e.g. "CanEditInvoice") is not a person and has no sensible reason to carry
-                // a name, contact number, or tax amount. Restored the original Name mapping.
                 var rolesDto = roles.Select(role => new Role
                 {
                     Id = role.Id,
@@ -251,7 +247,8 @@ namespace Api.Controllers
         {
             try
             {
-                var mainGroups = _securityService.GetAllSecurityMainGroup() ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
+                var mainGroups = _securityService.GetAllSecurityMainGroup()
+                                 ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
 
                 var groupsDto = mainGroups.Select(mainGroup => new Group
                 {
@@ -286,7 +283,8 @@ namespace Api.Controllers
         {
             try
             {
-                var groups = _securityService.GetAllSecurityGroup() ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
+                var groups = _securityService.GetAllSecurityGroup()
+                             ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
 
                 var groupsDto = groups.Select(group => new Group
                 {
@@ -359,23 +357,23 @@ namespace Api.Controllers
         [HttpPost("savecompany")]
         public IActionResult SaveCompany([FromBody] Company companyDto)
         {
+            if (companyDto == null)
+            {
+                return BadRequest(new { message = "Company data is required." });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToArray();
+
+                return BadRequest(errors);
+            }
+
             try
             {
-                if (companyDto == null)
-                {
-                    return BadRequest(new { message = "Company data is required." });
-                }
-
-                if (!ModelState.IsValid)
-                {
-                    var errors = ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToArray();
-
-                    return BadRequest(errors);
-                }
-
                 Core.Domain.Company company;
 
                 if (companyDto.Id == 0)
@@ -398,7 +396,11 @@ namespace Api.Controllers
 
                 _adminService.SaveCompany(company);
 
-                return Ok(new { message = "Company saved successfully." });
+                return Ok(new
+                {
+                    message = "Company saved successfully.",
+                    id = company.Id
+                });
             }
             catch (Exception ex)
             {
@@ -408,7 +410,7 @@ namespace Api.Controllers
         }
 
         // ------------------------------------------------------------------
-        // Private helpers (extracted to remove duplicate code)
+        // Private helpers
         // ------------------------------------------------------------------
 
         private Api.Data.Initializer CreateInitializer()
@@ -422,7 +424,7 @@ namespace Api.Controllers
                 _securityService);
         }
 
-        private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole> userRoles)
+        private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole>? userRoles)
         {
             var rolesDto = new List<Role>();
 
@@ -433,6 +435,11 @@ namespace Api.Controllers
 
             foreach (var role in userRoles)
             {
+                if (role == null)
+                {
+                    continue;
+                }
+
                 var roleDto = new Role
                 {
                     Id = role.SecurityRoleId,
@@ -446,6 +453,11 @@ namespace Api.Controllers
                 {
                     foreach (var permission in role.SecurityRole.Permissions)
                     {
+                        if (permission == null)
+                        {
+                            continue;
+                        }
+
                         roleDto.Permissions.Add(new Permission
                         {
                             Id = permission.SecurityPermissionId,
