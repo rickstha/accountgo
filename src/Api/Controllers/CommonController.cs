@@ -1,32 +1,22 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Dto.Financial;
 using Dto.Inventory;
 using Dto.Purchasing;
 using Dto.Sales;
+using Microsoft.AspNetCore.Mvc;
 using Services.Administration;
+using Services.Financial;
 using Services.Inventory;
 using Services.Purchasing;
 using Services.Sales;
-using System.Collections.Generic;
-using Services.Financial;
-using Dto.Financial;
-using System.Linq;
 using System;
-// TODO: point these at the real namespaces for these "future use" service interfaces -
-// they weren't imported anywhere in the original file; these are best-guess placeholders.
-using Services.Purchasing.Main;
-using Services.Security;
-using Services.Sales.Common;
-using Services.Administration.PaymentTerms;
-using Services.MainCustomer;
-using Services.TaxSystem;
-using Services.Contacts;
-using Services.Users;
-using Services.CustomerContacts;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Api.Controllers
 {
-    // CRITICAL (flagged): this controller has NO authorization at all, despite exposing
-    // customer records, vendor records, and financial account structures to any caller.
+    // CRITICAL: This controller currently has NO authorization.
+    // It exposes customers, vendors, items, and financial accounts to any caller.
+    // Enable authorization before production, e.g.:
     // [Microsoft.AspNetCore.Authorization.Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -39,37 +29,13 @@ namespace Api.Controllers
         private readonly IFinancialService _financialService;
         private readonly ILogger<CommonController> _logger;
 
-        // NOTE: the fields below are injected but not currently used anywhere in this
-        // class - flagged as likely dead dependencies, kept since they appear to be
-        // deliberate future-use scaffolding ("just for future use" comment in the source).
-        private readonly IPurchaseMainServices _purchaseMainServices;
-        private readonly ILoginServices _loginServices;
-        private readonly ISignUpServices _signUpServices;
-        private readonly ICustomerServices _customerServices;
-        private readonly IPayTermServices _payTermsServices;
-        private readonly IMainCustomerService _mainCustomerServices;
-        private readonly ITaxService _taxService;
-        private readonly IContactService _contactService;
-        private readonly IUserService _userService;
-        private readonly ICustomerContactService _customerContactServices;
-
         public CommonController(
             ISalesService salesService,
             IAdministrationService administrationService,
             IInventoryService inventoryService,
             IPurchasingService purchasingService,
             IFinancialService financialService,
-            ILogger<CommonController> logger,
-            IPurchaseMainServices purchaseMainServices,
-            ILoginServices loginServices,
-            ISignUpServices signUpServices,
-            ICustomerServices customerServices,
-            IPayTermServices payTermServices,
-            IMainCustomerService mainCustomerServices,
-            ITaxService taxService,
-            IContactService contactService,
-            IUserService userService,
-            ICustomerContactService customerContactServices)
+            ILogger<CommonController> logger)
         {
             _salesService = salesService;
             _administrationService = administrationService;
@@ -77,16 +43,6 @@ namespace Api.Controllers
             _purchasingService = purchasingService;
             _financialService = financialService;
             _logger = logger;
-            _purchaseMainServices = purchaseMainServices;
-            _loginServices = loginServices;
-            _signUpServices = signUpServices;
-            _customerServices = customerServices;
-            _payTermsServices = payTermServices;
-            _mainCustomerServices = mainCustomerServices;
-            _taxService = taxService;
-            _contactService = contactService;
-            _userService = userService;
-            _customerContactServices = customerContactServices;
         }
 
         // =========================================
@@ -99,12 +55,9 @@ namespace Api.Controllers
         {
             try
             {
-                var customers = _salesService.GetCustomers() ?? Enumerable.Empty<Core.Domain.Sales.Customer>();
+                var customers = _salesService.GetCustomers()
+                                ?? Enumerable.Empty<Core.Domain.Sales.Customer>();
 
-                // NOTE: removed CustomerServices/User - a customer having a property named
-                // after an injected service class, or embedding a full User object, is
-                // almost certainly a fabricated/copy-paste addition, not real data. Reverted
-                // to the previously-verified mapping.
                 var customersDto = customers
                     .Where(customer => customer.Party != null)
                     .Select(customer => new Dto.Sales.Customer
@@ -154,12 +107,10 @@ namespace Api.Controllers
         {
             try
             {
-                var items = (_inventoryService.GetAllItems() ?? Enumerable.Empty<Core.Domain.Items.Item>())
+                var items = (_inventoryService.GetAllItems()
+                             ?? Enumerable.Empty<Core.Domain.Items.Item>())
                     .OrderBy(i => i.Description);
 
-                // NOTE: removed CustomerServices/User - an inventory item has no sensible
-                // reason to carry a "CustomerServices" field or an embedded User object.
-                // Reverted to the previously-verified mapping.
                 var itemsDto = items.Select(item => new Dto.Inventory.Item
                 {
                     Id = item.Id,
@@ -188,7 +139,8 @@ namespace Api.Controllers
         {
             try
             {
-                var measurements = (_inventoryService.GetMeasurements() ?? Enumerable.Empty<Core.Domain.Items.Measurement>())
+                var measurements = (_inventoryService.GetMeasurements()
+                                    ?? Enumerable.Empty<Core.Domain.Items.Measurement>())
                     .OrderBy(m => m.Description);
 
                 return Ok(measurements);
@@ -210,11 +162,9 @@ namespace Api.Controllers
         {
             try
             {
-                var vendors = _purchasingService.GetVendors() ?? Enumerable.Empty<Core.Domain.Purchases.Vendor>();
+                var vendors = _purchasingService.GetVendors()
+                              ?? Enumerable.Empty<Core.Domain.Purchases.Vendor>();
 
-                // NOTE: removed CustomerServices/User (and fixed the missing comma that
-                // was here) - a vendor having "CustomerServices" or an embedded User object
-                // doesn't make domain sense. Reverted to the previously-verified mapping.
                 var vendorsDto = vendors
                     .Where(vendor => vendor.Party != null)
                     .Select(vendor => new Dto.Purchasing.Vendor
@@ -244,8 +194,12 @@ namespace Api.Controllers
         {
             try
             {
-                var itemCategories = _inventoryService.GetItemCategories() ?? Enumerable.Empty<object>();
-                return Ok(itemCategories.AsEnumerable());
+                // Service currently returns a loosely-typed collection.
+                // Prefer a concrete DTO when one becomes available.
+                var itemCategories = _inventoryService.GetItemCategories()
+                                     ?? Enumerable.Empty<object>();
+
+                return Ok(itemCategories);
             }
             catch (Exception ex)
             {
@@ -264,10 +218,9 @@ namespace Api.Controllers
         {
             try
             {
-                var banks = _financialService.GetCashAndBanks() ?? Enumerable.Empty<Core.Domain.Financials.Bank>();
+                var banks = _financialService.GetCashAndBanks()
+                            ?? Enumerable.Empty<Core.Domain.Financials.Bank>();
 
-                // NOTE: removed TaxServices - a bank/cash account having a "TaxServices"
-                // field doesn't make domain sense. Reverted to the previously-verified mapping.
                 var cashBanksDto = banks.Select(bank => new Dto.Financial.Bank
                 {
                     Id = bank.Id,
@@ -293,13 +246,12 @@ namespace Api.Controllers
         {
             try
             {
-                var accounts = (_financialService.GetAccounts() ?? Enumerable.Empty<Core.Domain.Financials.Account>())
-                    .Where(a => a.ChildAccounts != null && a.ChildAccounts.Count == 0)
+                // Leaf accounts only (no children) – typical posting accounts
+                var accounts = (_financialService.GetAccounts()
+                                ?? Enumerable.Empty<Core.Domain.Financials.Account>())
+                    .Where(a => a.ChildAccounts == null || a.ChildAccounts.Count == 0)
                     .OrderBy(a => a.AccountName);
 
-                // NOTE: removed CustomerDetails/User - a leaf-level GL posting account has
-                // no sensible reason to carry customer details or an embedded User object.
-                // Reverted to the previously-verified mapping.
                 var accountsDto = accounts.Select(account => new Dto.Financial.Account
                 {
                     Id = account.Id,
@@ -325,15 +277,17 @@ namespace Api.Controllers
         {
             try
             {
-                List<int> quoteStatuses = new List<int> { 0, 1, 3 };
+                // Only expose the statuses that the UI currently needs.
+                // Adjust this list when the enum or business rules change.
+                var allowedStatuses = new HashSet<int> { 0, 1, 3 };
 
                 var salesQuotationsDto = Enum.GetValues(typeof(Core.Domain.SalesQuoteStatus))
                     .Cast<int>()
-                    .Where(quoteStatuses.Contains)
-                    .Select(item => new Dto.Common.Status
+                    .Where(allowedStatuses.Contains)
+                    .Select(value => new Dto.Common.Status
                     {
-                        Id = item,
-                        Description = Enum.GetName(typeof(Core.Domain.SalesQuoteStatus), item)
+                        Id = value,
+                        Description = Enum.GetName(typeof(Core.Domain.SalesQuoteStatus), value)
                     })
                     .ToList();
 
