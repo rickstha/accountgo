@@ -8,7 +8,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Api.Controllers
 {
-  
+    // Recommended: enable authorization before production
+    // [Microsoft.AspNetCore.Authorization.Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class InventoryController : BaseController
@@ -53,7 +54,6 @@ namespace Api.Controllers
                 }
 
                 bool isNew = itemDto.Id == 0;
-
                 Core.Domain.Items.Item item;
 
                 if (isNew)
@@ -89,10 +89,6 @@ namespace Api.Controllers
                 item.InventoryAdjustmentAccountId = itemDto.InventoryAdjustmentAccountId;
                 item.CostOfGoodsSoldAccountId = itemDto.CostOfGoodsSoldAccountId;
                 item.PreferredVendorId = itemDto.PreferredVendorId;
-                item.TaxService = itemDto.TaxServices;
-                item.ContactService = itemDto.ContactService;
-                item.UserService = itemDto.UserService;
-                item.customerContactServices = itemDto.CustomerContactServices;
 
                 if (isNew)
                 {
@@ -103,19 +99,12 @@ namespace Api.Controllers
                     _inventoryService.UpdateItem(item);
                 }
 
-                return Ok(new
-                {
-                    message = "Item saved successfully."
-                });
+                return Ok(new { message = "Item saved successfully." });
             }
             catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Error while saving item");
-
-                return StatusCode(500, new
-                {
-                    message = "An error occurred while saving the item."
-                });
+                return StatusCode(500, new { message = "An error occurred while saving the item." });
             }
         }
 
@@ -129,9 +118,10 @@ namespace Api.Controllers
         {
             try
             {
-                var items = _inventoryService.GetAllItems() ?? Enumerable.Empty<Core.Domain.Items.Item>();
+                var items = _inventoryService.GetAllItems()
+                            ?? Enumerable.Empty<Core.Domain.Items.Item>();
 
-                ICollection<Item> itemsDto = new List<Item>();
+                var itemsDto = new List<Item>();
 
                 foreach (var item in items)
                 {
@@ -145,19 +135,12 @@ namespace Api.Controllers
                         Cost = item.Cost,
                         Price = item.Price,
                         QuantityOnHand = item.ComputeQuantityOnHand(),
-                        // FIXED: this used to be item.ComputeQuantityOnHand() - a copy-paste
-                        // error that assigned a decimal quantity to a category ID field.
                         ItemCategoryId = item.ItemCategoryId,
                         SmallestMeasurementId = item.SmallestMeasurementId,
                         SellMeasurementId = item.SellMeasurementId,
                         PurchaseMeasurementId = item.PurchaseMeasurementId,
                         PreferredVendorId = item.PreferredVendorId,
                         ItemTaxGroupId = item.ItemTaxGroupId,
-                        // FIXED: these three used to reference nonexistent nested properties
-                        // (item.salesAccount?.Sale, .CostOfGoodsSoldAccount?.Good,
-                        // .InventoryAdjustment?.Inventory) and assigned string fallbacks to
-                        // what are int? fields - matched to the correct mapping already used
-                        // in the Item(int id) method below.
                         SalesAccountId = item.SalesAccountId,
                         InventoryAccountId = item.InventoryAccountId,
                         CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
@@ -170,11 +153,7 @@ namespace Api.Controllers
             catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Error while getting items");
-
-                return StatusCode(500, new
-                {
-                    message = "An error occurred while retrieving items."
-                });
+                return StatusCode(500, new { message = "An error occurred while retrieving items." });
             }
         }
 
@@ -215,11 +194,6 @@ namespace Api.Controllers
                     InventoryAccountId = item.InventoryAccountId,
                     CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
                     InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
-                    item.TaxService = itemDto.TaxServices;
-                    item.ContactService = itemDto.ContactService;
-                    item.UserService = itemDto.UserService;
-                    item.customerContactServices = itemDto.CustomerContactServices;
-                    
                 };
 
                 return Ok(itemDto);
@@ -227,11 +201,7 @@ namespace Api.Controllers
             catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Error while getting item");
-
-                return StatusCode(500, new
-                {
-                    message = "An error occurred while retrieving the item."
-                });
+                return StatusCode(500, new { message = "An error occurred while retrieving the item." });
             }
         }
 
@@ -246,7 +216,8 @@ namespace Api.Controllers
             try
             {
                 var invControlJournals =
-                    _inventoryService.GetInventoryControlJournals() ?? Enumerable.Empty<Core.Domain.Items.InventoryControlJournal>();
+                    _inventoryService.GetInventoryControlJournals()
+                    ?? Enumerable.Empty<Core.Domain.Items.InventoryControlJournal>();
 
                 var icjDto = new List<InventoryControlJournal>();
 
@@ -263,21 +234,14 @@ namespace Api.Controllers
                     });
                 }
 
-                _logger.LogInformation(
-                    "ICJ Count: {Count}",
-                    icjDto.Count
-                );
+                _logger.LogInformation("ICJ Count: {Count}", icjDto.Count);
 
                 return Ok(icjDto);
             }
             catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Error while getting ICJ");
-
-                return StatusCode(500, new
-                {
-                    message = "An error occurred while retrieving inventory control journals."
-                });
+                return StatusCode(500, new { message = "An error occurred while retrieving inventory control journals." });
             }
         }
     }

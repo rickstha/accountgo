@@ -15,11 +15,7 @@ using System.Linq;
 
 namespace Api.Controllers
 {
-    // CRITICAL: This controller currently has NO authorization.
-    // Clear() wipes the database. Setup(), Users(), Roles(), Groups() expose
-    // destructive operations and full user/PII data.
-    // Enable a real authorization check before production, e.g.:
-    // [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
     [Route("api/[controller]")]
     [ApiController]
     public class AdministrationController : BaseController
@@ -57,7 +53,6 @@ namespace Api.Controllers
         // SETUP
         // =========================================
 
-        // Destructive / one-time operation → POST (not GET)
         [HttpPost("setup")]
         public IActionResult Setup()
         {

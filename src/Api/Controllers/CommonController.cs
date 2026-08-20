@@ -3,6 +3,7 @@ using Dto.Inventory;
 using Dto.Purchasing;
 using Dto.Sales;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Services.Administration;
 using Services.Financial;
 using Services.Inventory;
@@ -14,10 +15,7 @@ using System.Linq;
 
 namespace Api.Controllers
 {
-    // CRITICAL: This controller currently has NO authorization.
-    // It exposes customers, vendors, items, and financial accounts to any caller.
-    // Enable authorization before production, e.g.:
-    // [Microsoft.AspNetCore.Authorization.Authorize]
+   
     [Route("api/[controller]")]
     [ApiController]
     public class CommonController : BaseController
@@ -194,8 +192,7 @@ namespace Api.Controllers
         {
             try
             {
-                // Service currently returns a loosely-typed collection.
-                // Prefer a concrete DTO when one becomes available.
+                
                 var itemCategories = _inventoryService.GetItemCategories()
                                      ?? Enumerable.Empty<object>();
 
@@ -277,8 +274,7 @@ namespace Api.Controllers
         {
             try
             {
-                // Only expose the statuses that the UI currently needs.
-                // Adjust this list when the enum or business rules change.
+                
                 var allowedStatuses = new HashSet<int> { 0, 1, 3 };
 
                 var salesQuotationsDto = Enum.GetValues(typeof(Core.Domain.SalesQuoteStatus))

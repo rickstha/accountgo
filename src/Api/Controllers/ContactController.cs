@@ -14,7 +14,6 @@ namespace Api.Controllers
         private readonly ISalesService _salesService;
         private readonly IPurchasingService _purchasingService;
 
-        // Party type constants for readability
         private const int PartyTypeCustomer = 1;
         private const int PartyTypeVendor = 2;
 
@@ -52,12 +51,8 @@ namespace Api.Controllers
                         Id = contact.Id,
                         FirstName = contact.FirstName,
                         LastName = contact.LastName,
-                        HoldingPartyId = contact.partyId,
-                        HoldingPartyType = contact.PartyTypeCustomer,
-                        TaxService =contact.TaxServices;
-                        ContactService = contact.ContactService;
-                        UserService = contact.UserService;
-                        CustomerContactServices = contact.CustomerContactServices;
+                        HoldingPartyId = partyId,
+                        HoldingPartyType = PartyTypeCustomer
                     });
                 }
             }
@@ -100,8 +95,7 @@ namespace Api.Controllers
                 return BadRequest("id is required.");
             }
 
-            // NOTE: Method name has a typo in the original service (GetContacyById).
-            // Corrected here to the expected name. Change back if the service really uses the typo.
+            // NOTE: If your service still has the typo "GetContacyById", change this back.
             var contact = _salesService.GetContactById(id);
             if (contact == null)
             {
@@ -116,10 +110,6 @@ namespace Api.Controllers
                 MiddleName = contact.MiddleName,
                 HoldingPartyId = partyId,
                 HoldingPartyType = partyType,
-                TaxService =contact.TaxServices;
-                ContactService = contact.ContactService;
-                UserService = contact.UserService;
-                CustomerContactServices = contact.CustomerContactServices;
                 Party = contact.Party == null
                     ? null
                     : new Dto.Common.Party
@@ -159,7 +149,6 @@ namespace Api.Controllers
                     {
                         Party = new Core.Domain.Party
                         {
-                            // Set correct PartyType based on holding party
                             PartyType = model.HoldingPartyType == PartyTypeCustomer
                                 ? Core.Domain.PartyTypes.Customer
                                 : Core.Domain.PartyTypes.Vendor
@@ -182,9 +171,10 @@ namespace Api.Controllers
                 contact.MiddleName = model.MiddleName;
                 contact.LastName = model.LastName;
 
-                // Map Party fields (guard against null Party from client)
+                // Map Party fields
                 if (model.Party != null)
                 {
+                    contact.Party ??= new Core.Domain.Party();
                     contact.Party.Website = model.Party.Website;
                     contact.Party.Email = model.Party.Email;
                     contact.Party.Phone = model.Party.Phone;
@@ -255,7 +245,6 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                // In production you should log the full exception
                 var message = ex.InnerException?.Message ?? ex.Message;
                 return BadRequest(new[] { message });
             }
