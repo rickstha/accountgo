@@ -8,8 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Api.Controllers
 {
-    // Recommended: enable authorization before production
-    // [Microsoft.AspNetCore.Authorization.Authorize]
+    
     [ApiController]
     [Route("api/[controller]")]
     public class InventoryController : BaseController
