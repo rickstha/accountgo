@@ -1,11 +1,3 @@
-//-----------------------------------------------------------------------
-// <copyright file="PurchaseInvoiceLine.cs" company="AccountGo">
-// Copyright (c) AccountGo. All rights reserved.
-// <author>Marvin Perez</author>
-// <date>1/11/2015 9:48:38 AM</date>
-// </copyright>
-//-----------------------------------------------------------------------
-
 using Core.Domain.Items;
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -33,16 +25,54 @@ namespace Core.Domain.Purchases
         public virtual PurchaseOrderLine PurchaseOrderLine { get; set; }
 
         [NotMapped]
-        public decimal LineTaxAmount { get { return ComputeLineTaxAmount(); } }
+        public decimal LineTaxAmount
+        {
+            get { return ComputeLineTaxAmount(); }
+        }
+
+        [NotMapped]
+        public decimal TotalTaxAmount
+        {
+            get
+            {
+                if (PurchaseInvoiceHeader == null ||
+                    PurchaseInvoiceHeader.PurchaseInvoiceLines == null)
+                {
+                    return LineTaxAmount;
+                }
+
+                decimal totalTaxAmount = 0m;
+
+                foreach (var line in PurchaseInvoiceHeader.PurchaseInvoiceLines)
+                {
+                    totalTaxAmount += line.LineTaxAmount;
+                }
+
+                return totalTaxAmount;
+            }
+        }
 
         private decimal ComputeLineTaxAmount()
         {
-            decimal? lineTaxAmount = 0;
-            foreach(var tax in Item.ItemTaxGroup.ItemTaxGroupTax)
+            if (Item == null ||
+                Item.ItemTaxGroup == null ||
+                Item.ItemTaxGroup.ItemTaxGroupTax == null)
             {
-                lineTaxAmount += ((tax.Tax.Rate / 100)  * (Quantity * Cost));
+                return 0m;
             }
-            return lineTaxAmount.Value;
+
+            decimal taxAmount = 0m;
+            decimal lineAmount = Quantity * (Cost ?? 0m);
+
+            foreach (var tax in Item.ItemTaxGroup.ItemTaxGroupTax)
+            {
+                if (tax.Tax != null)
+                {
+                    taxAmount += (tax.Tax.Rate / 100m) * lineAmount;
+                }
+            }
+
+            return taxAmount;
         }
     }
 }

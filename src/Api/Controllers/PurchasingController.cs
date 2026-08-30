@@ -34,7 +34,7 @@ public IActionResult SavePurchaseOrder(
         else
         {
             purchaseOrder = _purchasingService
-                .GetPurchaseOrderById(purchaseOrderDto.Id);
+                .GetPurchaseOrder ById(purchaseOrderDto.Id);
 
             if (purchaseOrder == null)
                 return NotFound("Purchase order not found.");
