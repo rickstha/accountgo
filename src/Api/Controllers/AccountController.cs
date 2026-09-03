@@ -96,6 +96,7 @@ namespace Api.Controllers
                             UserName = username,
                             Firstname = firstName,
                             Lastname = lastName
+                            
                         };
 
                     _administrationService.SaveUser(newUser);
