@@ -47,6 +47,8 @@ public IActionResult SavePurchaseOrder(
         purchaseOrder.PaymentTermId = purchaseOrderDto.PaymentTermId;
         purchaseOrder.VendorId = purchaseOrderDto.VendorId;
         purchaseOrder.Date = purchaseOrderDto.OrderDate;
+        purchaseOrder.PaymentTermIdMain = purchaseDto.PaymentTermIdMain;
+        purchaseOrder.TotalTaxAmount = purchaseDto.totalTaxAmount;
 
         var incomingLines = purchaseOrderDto.PurchaseOrderLines
             ?? new List<Dto.Purchasing.PurchaseOrderLine>();
@@ -65,6 +67,8 @@ public IActionResult SavePurchaseOrder(
                 existingLine.Discount = line.Discount ?? 0;
                 existingLine.Quantity = line.Quantity ?? 0;
                 existingLine.ItemId = line.ItemId ?? 0;
+                existingLine.ItemTaxGroup = line.ItemTaxGroup ?? 0;
+                existingLine.totalDiscount = line.totalDiscount ?? 0;
             }
             else
             {
