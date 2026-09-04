@@ -428,6 +428,9 @@ namespace Api.Controllers
                 _purchasingService,
                 _inventoryService,
                 _securityService);
+                _mainAccount,
+                _companyCode,
+                _incomeSummaryAccount,
         }
 
         private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole>? userRoles)
