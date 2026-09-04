@@ -103,11 +103,12 @@ namespace Api.Controllers
                 {
                     customer.PrimaryContact.FirstName = customerDto.PrimaryContact.FirstName;
                     customer.PrimaryContact.LastName = customerDto.PrimaryContact.LastName;
-                    customer.PrimaryContact.Party.Name = customerDto.PrimaryContact.Party?.Name;
-                    customer.PrimaryContact.Party.Phone = customerDto.PrimaryContact.Party?.Phone;
-                    customer.PrimaryContact.Party.Email = customerDto.PrimaryContact.Party?.Email;
-                    customer.PrimaryContact.Party.Fax = customerDto.PrimaryContact.Party?.Fax;
-                    customer.PrimaryContact.Party.Website = customerDto.PrimaryContact.Party?.Website;
+                    customer.PrimaryContact.Party ??= new Core.Domain.Party();
+                    customer.PrimaryContact.Party.Name = customerDto.PrimaryContact.Party?.Name ?? customer.PrimaryContact.Party.Name;
+                    customer.PrimaryContact.Party.Phone = customerDto.PrimaryContact.Party?.Phone ?? customer.PrimaryContact.Party.Phone;
+                    customer.PrimaryContact.Party.Email = customerDto.PrimaryContact.Party?.Email ?? customer.PrimaryContact.Party.Email;
+                    customer.PrimaryContact.Party.Fax = customerDto.PrimaryContact.Party?.Fax ?? customer.PrimaryContact.Party.Fax;
+                    customer.PrimaryContact.Party.Website = customerDto.PrimaryContact.Party?.Website ?? customer.PrimaryContact.Party.Website;
                 }
 
                 customer.AccountsReceivableAccountId = customerDto.AccountsReceivableId;
@@ -1315,15 +1316,16 @@ namespace Api.Controllers
 
                 for (int i = 1; i <= DateTime.Now.Month; i++)
                 {
-                    // Correct format: "MMMM" (4 M's) = full month name
                     var monthName = new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM");
+                    var totalForMonth = totalSales
+                        .Where(a => a.Month == i.ToString())
+                        .Select(x => x.Amount)
+                        .FirstOrDefault();
+
                     finalMonthlySalesDto.Add(new Dto.Sales.MonthlySales
                     {
                         Month = monthName,
-                        Amount = totalSales
-                            .Where(a => a.Month == i.ToString())
-                            .Select(x => x.Amount)
-                            .FirstOrDefault()
+                        Amount = totalForMonth
                     });
                 }
 
