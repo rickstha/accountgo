@@ -248,10 +248,6 @@ namespace Api.Controllers
                 journalEntry.VoucherType = (Core.Domain.JournalVoucherTypes)journalEntryDto.VoucherType.GetValueOrDefault();
                 journalEntry.ReferenceNo = journalEntryDto.ReferenceNo;
                 journalEntry.Memo = journalEntryDto.Memo;
-                journalEntry.TaxAmount = journalEntryDto.TaxAmound;
-                journalEntry.Sales = journalEntryDto.Sales;
-                journalEntries.customerContact = journalEntriesDto.customerContact;
-                journalEntries.IncomeStatement = journalEntriesDto.incomeStatement;
 
                 // Update / add lines
                 var incomingLineIds = new HashSet<int>();
@@ -436,15 +432,15 @@ namespace Api.Controllers
             return accountTree;
         }
 
-        private IList<MasterGeneralLedger> BuildMasterGeneralLedger(
+        private IList<Dto.Financial.MasterGeneralLedger> BuildMasterGeneralLedger(
             ICollection<Services.Financial.MasterGeneralLedger> allLedger)
         {
             if (allLedger == null || allLedger.Count == 0)
             {
-                return new List<MasterGeneralLedger>();
+                return new List<Dto.Financial.MasterGeneralLedger>();
             }
 
-            var result = new List<MasterGeneralLedger>();
+            var result = new List<Dto.Financial.MasterGeneralLedger>();
 
             var groups = allLedger
                 .GroupBy(x => x.TransactionNo)
@@ -452,19 +448,19 @@ namespace Api.Controllers
 
             foreach (var group in groups)
             {
-                var parent = new MasterGeneralLedger
+                var parent = new Dto.Financial.MasterGeneralLedger
                 {
                     GroupId = group.Key,
                     TransactionNo = null,
                     Credit = null,
                     Debit = null,
                     Date = null,
-                    ChildMasterGeneralLedger = new List<MasterGeneralLedger>()
+                    ChildMasterGeneralLedger = new List<Dto.Financial.MasterGeneralLedger>()
                 };
 
                 foreach (var ledger in group)
                 {
-                    parent.ChildMasterGeneralLedger.Add(new MasterGeneralLedger
+                    parent.ChildMasterGeneralLedger.Add(new Dto.Financial.MasterGeneralLedger
                     {
                         Id = ledger.Id,
                         TransactionNo = ledger.TransactionNo,
