@@ -27,6 +27,9 @@ namespace Api.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly ISecurityService _securityService;
         private readonly ITaxService _taxService;
+        private readonly IMainAcount _mainAccount;
+        private readonly ICompanycode _companyCode;
+        private readonly IIncomeSummaryAccount _incomeSummaryAccount;
         private readonly ILogger<AdministrationController> _logger;
 
         public AdministrationController(
@@ -37,6 +40,10 @@ namespace Api.Controllers
             IInventoryService inventoryService,
             ISecurityService securityService,
             ITaxService taxService,
+            IMainAcount mainAccount,
+            ICompanycode companyCode,
+            IIncomeSummaryAccount IncomeSummaryAccount,
+            I
             ILogger<AdministrationController> logger)
         {
             _adminService = adminService;
@@ -46,6 +53,9 @@ namespace Api.Controllers
             _inventoryService = inventoryService;
             _securityService = securityService;
             _taxService = taxService;
+            _ainAcount = mainAccount;
+            _companycode = companyCode;
+            _IncomeSummaryAccount = IncomeSummaryAccount;
             _logger = logger;
         }
 
