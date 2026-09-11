@@ -15,7 +15,6 @@ using System.Linq;
 
 namespace Api.Controllers
 {
-
     [Route("api/[controller]")]
     [ApiController]
     public class AdministrationController : BaseController
@@ -45,7 +44,7 @@ namespace Api.Controllers
             _purchasingService = purchasingService;
             _inventoryService = inventoryService;
             _securityService = securityService;
-            _taxService = taxService;
+            _taxService = taxService;          // currently unused – kept for future use
             _logger = logger;
         }
 
@@ -76,10 +75,9 @@ namespace Api.Controllers
         }
 
         // =========================================
-        // CLEAR DATABASE
+        // CLEAR DATABASE  (destructive – POST only)
         // =========================================
 
-        // Extremely destructive → POST (not GET)
         [HttpPost("clear")]
         public IActionResult Clear()
         {
@@ -107,7 +105,7 @@ namespace Api.Controllers
         // =========================================
 
         [HttpGet("company")]
-        public IActionResult Company(string? companyCode)
+        public IActionResult Company(string? companyCode = null)
         {
             try
             {
@@ -124,7 +122,17 @@ namespace Api.Controllers
                     return NotFound(new { message = "Company not found for the provided code." });
                 }
 
-                return Ok(company);
+                // Map to DTO instead of returning domain entity
+                var companyDto = new Company
+                {
+                    Id = company.Id,
+                    CompanyCode = company.CompanyCode,
+                    Name = company.Name,
+                    ShortName = company.ShortName
+                    // Add other fields here if they exist on the DTO
+                };
+
+                return Ok(companyDto);
             }
             catch (Exception ex)
             {
@@ -431,7 +439,7 @@ namespace Api.Controllers
 
             foreach (var role in userRoles)
             {
-                if (role == null)
+                if (role?.SecurityRole == null)
                 {
                     continue;
                 }
@@ -439,17 +447,17 @@ namespace Api.Controllers
                 var roleDto = new Role
                 {
                     Id = role.SecurityRoleId,
-                    Name = role.SecurityRole?.Name,
-                    DisplayName = role.SecurityRole?.DisplayName,
-                    SysAdmin = role.SecurityRole?.SysAdmin ?? false,
+                    Name = role.SecurityRole.Name,
+                    DisplayName = role.SecurityRole.DisplayName,
+                    SysAdmin = role.SecurityRole.SysAdmin,
                     Permissions = new List<Permission>()
                 };
 
-                if (role.SecurityRole?.Permissions != null)
+                if (role.SecurityRole.Permissions != null)
                 {
                     foreach (var permission in role.SecurityRole.Permissions)
                     {
-                        if (permission == null)
+                        if (permission?.SecurityPermission == null)
                         {
                             continue;
                         }
@@ -457,11 +465,13 @@ namespace Api.Controllers
                         roleDto.Permissions.Add(new Permission
                         {
                             Id = permission.SecurityPermissionId,
-                            Name = permission.SecurityPermission?.Name,
-                            Group = new Group
-                            {
-                                Name = permission.SecurityPermission?.Group?.Name
-                            }
+                            Name = permission.SecurityPermission.Name,
+                            Group = permission.SecurityPermission.Group == null
+                                ? null
+                                : new Group
+                                {
+                                    Name = permission.SecurityPermission.Group.Name
+                                }
                         });
                     }
                 }

@@ -655,7 +655,12 @@ namespace Api.Controllers
 
                 if (isNew)
                 {
-                    if (!salesInvoiceDto.FromSalesOrderId.HasValue)
+                    // Create or load related sales order
+                    if (salesInvoiceDto.FromSalesOrderId.HasValue)
+                    {
+                        salesOrder = _salesService.GetSalesOrderById(salesInvoiceDto.FromSalesOrderId.Value);
+                    }
+                    else
                     {
                         salesOrder = new Core.Domain.Sales.SalesOrderHeader
                         {
@@ -666,10 +671,6 @@ namespace Api.Controllers
                             Status = SalesOrderStatus.FullyInvoiced,
                             SalesOrderLines = new List<Core.Domain.Sales.SalesOrderLine>()
                         };
-                    }
-                    else
-                    {
-                        salesOrder = _salesService.GetSalesOrderById(salesInvoiceDto.FromSalesOrderId.GetValueOrDefault());
                     }
 
                     salesInvoice = new Core.Domain.Sales.SalesInvoiceHeader
@@ -691,14 +692,15 @@ namespace Api.Controllers
                             ItemId = line.ItemId.GetValueOrDefault(),
                             MeasurementId = line.MeasurementId.GetValueOrDefault()
                         };
-                        salesInvoice.SalesInvoiceLines.Add(salesInvoiceLine);
 
+                        // Link to existing order line if provided
                         if (line.Id != 0 && salesOrder != null)
                         {
                             salesInvoiceLine.SalesOrderLineId = line.Id;
                         }
                         else if (salesOrder != null)
                         {
+                            // Create corresponding order line
                             var salesOrderLine = new Core.Domain.Sales.SalesOrderLine
                             {
                                 Amount = line.Amount.GetValueOrDefault(),
@@ -710,10 +712,10 @@ namespace Api.Controllers
 
                             salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
                             salesOrder.SalesOrderLines.Add(salesOrderLine);
-
                             salesInvoiceLine.SalesOrderLine = salesOrderLine;
-                            salesInvoiceLine.SalesOrderLineId = salesOrderLine.Id;
                         }
+
+                        salesInvoice.SalesInvoiceLines.Add(salesInvoiceLine);
                     }
                 }
                 else
@@ -739,7 +741,9 @@ namespace Api.Controllers
 
                     foreach (var line in incomingLines)
                     {
-                        var existingLine = salesInvoice.SalesInvoiceLines.FirstOrDefault(l => l.Id == line.Id && line.Id != 0);
+                        var existingLine = salesInvoice.SalesInvoiceLines
+                            .FirstOrDefault(l => l.Id == line.Id && line.Id != 0);
+
                         if (existingLine != null)
                         {
                             existingLine.Amount = line.Amount.GetValueOrDefault();
@@ -759,40 +763,10 @@ namespace Api.Controllers
                                 MeasurementId = line.MeasurementId.GetValueOrDefault()
                             };
                             salesInvoice.SalesInvoiceLines.Add(salesInvoiceLine);
-
-                            var salesOrderLine = new Core.Domain.Sales.SalesOrderLine
-                            {
-                                Amount = line.Amount.GetValueOrDefault(),
-                                Discount = line.Discount.GetValueOrDefault(),
-                                Quantity = line.Quantity.GetValueOrDefault(),
-                                ItemId = line.ItemId.GetValueOrDefault(),
-                                MeasurementId = line.MeasurementId.GetValueOrDefault()
-                            };
-
-                            if (salesOrder == null)
-                            {
-                                if (existingLine?.SalesOrderLine != null)
-                                {
-                                    salesOrder = _salesService.GetSalesOrderLineById(existingLine.SalesOrderLine.Id)?.SalesOrderHeader;
-                                }
-                                else if (salesInvoiceDto.FromSalesOrderId.HasValue)
-                                {
-                                    salesOrder = _salesService.GetSalesOrderById(salesInvoiceDto.FromSalesOrderId.Value);
-                                }
-                                else
-                                {
-                                    salesOrder = new Core.Domain.Sales.SalesOrderHeader();
-                                }
-
-                                salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
-                            }
-
-                            // Must run for every newly added line
-                            salesOrder.SalesOrderLines.Add(salesOrderLine);
-                            salesInvoiceLine.SalesOrderLine = salesOrderLine;
                         }
                     }
 
+                    // Remove deleted lines
                     var deleted = salesInvoice.SalesInvoiceLines
                         .Where(line => line.Id != 0 && !incomingLines.Any(x => x.Id == line.Id))
                         .ToList();
@@ -908,7 +882,6 @@ namespace Api.Controllers
                         MeasurementDescription = line.Measurement?.Description
                     };
 
-                    _logger.LogInformation("Quotation line: {ItemDescription}", lineDto.ItemDescription);
                     quoteDto.SalesQuotationLines.Add(lineDto);
                 }
 
@@ -1163,21 +1136,14 @@ namespace Api.Controllers
                     return BadRequest("Receipt data is required.");
                 }
 
-                if (!ModelState.IsValid)
-                {
-                    var errors = ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToArray();
-                    return BadRequest(errors);
-                }
-
                 int? accountToDebitId = (int?)receiptDto.AccountToDebitId;
                 int? accountToCreditId = (int?)receiptDto.AccountToCreditId;
                 int? customerId = (int?)receiptDto.CustomerId;
                 decimal? amount = (decimal?)receiptDto.Amount;
+                DateTime? receiptDate = (DateTime?)receiptDto.ReceiptDate;
 
-                if (!accountToDebitId.HasValue || !accountToCreditId.HasValue || !customerId.HasValue || !amount.HasValue)
+                if (!accountToDebitId.HasValue || !accountToCreditId.HasValue ||
+                    !customerId.HasValue || !amount.HasValue || !receiptDate.HasValue)
                 {
                     return BadRequest("Receipt payload is incomplete.");
                 }
@@ -1198,12 +1164,12 @@ namespace Api.Controllers
 
                 if (customer.CustomerAdvancesAccountId != accountToCreditId.Value)
                 {
-                    return BadRequest("Invalid account.");
+                    return BadRequest("Invalid credit account for this customer.");
                 }
 
                 var salesReceipt = new Core.Domain.Sales.SalesReceiptHeader
                 {
-                    Date = receiptDto.ReceiptDate,
+                    Date = receiptDate.Value,
                     CustomerId = customerId.Value,
                     AccountToDebitId = bank.AccountId,
                     Amount = amount.Value,
@@ -1239,27 +1205,35 @@ namespace Api.Controllers
                     return BadRequest("Allocation data is required.");
                 }
 
-                if (!ModelState.IsValid)
+                int? customerId = (int?)allocationDto.CustomerId;
+                int? receiptId = (int?)allocationDto.ReceiptId;
+                DateTime? date = (DateTime?)allocationDto.Date;
+
+                if (!customerId.HasValue || !receiptId.HasValue || !date.HasValue)
                 {
-                    var errors = ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToArray();
-                    return BadRequest(errors);
+                    return BadRequest("Allocation payload is incomplete.");
                 }
 
-                foreach (var line in allocationDto.AllocationLines ?? new List<dynamic>())
+                var allocationLines = allocationDto.AllocationLines;
+                if (allocationLines == null)
+                {
+                    return BadRequest("Allocation lines are required.");
+                }
+
+                foreach (var line in allocationLines)
                 {
                     decimal? amount = (decimal?)line.AmountToAllocate;
-                    if (amount.HasValue)
+                    int? invoiceId = (int?)line.InvoiceId;
+
+                    if (amount.HasValue && amount.Value > 0 && invoiceId.HasValue)
                     {
                         var allocation = new Core.Domain.Sales.CustomerAllocation
                         {
-                            CustomerId = allocationDto.CustomerId,
-                            Date = allocationDto.Date,
-                            SalesInvoiceHeaderId = line.InvoiceId,
-                            SalesReceiptHeaderId = allocationDto.ReceiptId,
-                            Amount = amount.GetValueOrDefault()
+                            CustomerId = customerId.Value,
+                            Date = date.Value,
+                            SalesInvoiceHeaderId = invoiceId.Value,
+                            SalesReceiptHeaderId = receiptId.Value,
+                            Amount = amount.Value
                         };
 
                         _salesService.SaveCustomerAllocation(allocation);
@@ -1289,43 +1263,35 @@ namespace Api.Controllers
                     .Where(a => a.GeneralLedgerHeaderId != null)
                     ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceHeader>();
 
-                var monthlySalesDto = new List<Dto.Sales.MonthlySales>();
+                var monthlyTotals = new Dictionary<int, decimal>();
 
                 foreach (var item in salesInvoices)
                 {
+                    int month = item.Date.Month;
+                    decimal lineTotal = 0;
+
                     foreach (var line in item.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>())
                     {
-                        monthlySalesDto.Add(new Dto.Sales.MonthlySales
-                        {
-                            Month = item.Date.Month.ToString(),
-                            Amount = (line.Amount ?? 0) * (line.Quantity ?? 0)
-                        });
+                        lineTotal += (line.Amount ?? 0) * (line.Quantity ?? 0);
                     }
-                }
 
-                var totalSales = monthlySalesDto
-                    .GroupBy(a => a.Month)
-                    .Select(ms => new Dto.Sales.MonthlySales
-                    {
-                        Month = ms.Key,
-                        Amount = ms.Sum(x => x.Amount)
-                    })
-                    .ToList();
+                    if (monthlyTotals.ContainsKey(month))
+                        monthlyTotals[month] += lineTotal;
+                    else
+                        monthlyTotals[month] = lineTotal;
+                }
 
                 var finalMonthlySalesDto = new List<Dto.Sales.MonthlySales>();
 
                 for (int i = 1; i <= DateTime.Now.Month; i++)
                 {
                     var monthName = new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM");
-                    var totalForMonth = totalSales
-                        .Where(a => a.Month == i.ToString())
-                        .Select(x => x.Amount)
-                        .FirstOrDefault();
+                    monthlyTotals.TryGetValue(i, out var amount);
 
                     finalMonthlySalesDto.Add(new Dto.Sales.MonthlySales
                     {
                         Month = monthName,
-                        Amount = totalForMonth
+                        Amount = amount
                     });
                 }
 
@@ -1366,7 +1332,7 @@ namespace Api.Controllers
                     CompanyName = company?.Name
                 };
 
-                decimal? totalTax = 0;
+                decimal totalTax = 0;
                 var lines = salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>();
                 var subtotal = lines.Sum(line => (line.Amount ?? 0) * (line.Quantity ?? 0));
 
@@ -1403,7 +1369,7 @@ namespace Api.Controllers
 
                 salesInvoiceDto.Amount = subtotal;
                 salesInvoiceDto.TotalTax = totalTax;
-                salesInvoiceDto.TotalAmountAfterTax = subtotal + (totalTax ?? 0);
+                salesInvoiceDto.TotalAmountAfterTax = subtotal + totalTax;
 
                 return Ok(salesInvoiceDto);
             }
