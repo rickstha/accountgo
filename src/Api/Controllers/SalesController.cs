@@ -1,16 +1,16 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Services.Administration;
 using Services.Financial;
 using Services.Sales;
+using Services.Inventory;
+using Services.TaxSystem;
+using Core.Domain;
+using Core.Domain.Sales;
+using Dto.Sales;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Core.Domain;
-using Core.Domain.Sales;
-using Services.Inventory;
-using Dto.Sales;
-using Services.TaxSystem;
-using Microsoft.Extensions.Logging;
 
 namespace Api.Controllers
 {
@@ -49,12 +49,10 @@ namespace Api.Controllers
 
         [HttpPost]
         [Route("SaveCustomer")]
-        public IActionResult SaveCustomer([FromBody] Dto.Sales.Customer customerDto)
+        public IActionResult SaveCustomer([FromBody] Customer customerDto)
         {
             if (customerDto == null)
-            {
-                return BadRequest("Customer data is required.");
-            }
+                return BadRequest(new[] { "Customer data is required." });
 
             try
             {
@@ -65,17 +63,11 @@ namespace Api.Controllers
                 {
                     customer = new Core.Domain.Sales.Customer
                     {
-                        Party = new Core.Domain.Party
+                        Party = new Party { PartyType = PartyTypes.Customer },
+                        PrimaryContact = new Contact
                         {
-                            PartyType = Core.Domain.PartyTypes.Customer
-                        },
-                        PrimaryContact = new Core.Domain.Contact
-                        {
-                            ContactType = Core.Domain.ContactTypes.Customer,
-                            Party = new Core.Domain.Party
-                            {
-                                PartyType = Core.Domain.PartyTypes.Contact
-                            }
+                            ContactType = ContactTypes.Customer,
+                            Party = new Party { PartyType = PartyTypes.Contact }
                         }
                     };
                 }
@@ -83,14 +75,12 @@ namespace Api.Controllers
                 {
                     customer = _salesService.GetCustomerById(customerDto.Id);
                     if (customer == null)
-                    {
-                        return NotFound("Customer not found.");
-                    }
+                        return NotFound(new[] { "Customer not found." });
                 }
 
-                customer.Party ??= new Core.Domain.Party();
-                customer.PrimaryContact ??= new Core.Domain.Contact { Party = new Core.Domain.Party() };
-                customer.PrimaryContact.Party ??= new Core.Domain.Party();
+                customer.Party ??= new Party();
+                customer.PrimaryContact ??= new Contact { Party = new Party() };
+                customer.PrimaryContact.Party ??= new Party();
 
                 customer.No = customerDto.No;
                 customer.Party.Name = customerDto.Name;
@@ -103,7 +93,7 @@ namespace Api.Controllers
                 {
                     customer.PrimaryContact.FirstName = customerDto.PrimaryContact.FirstName;
                     customer.PrimaryContact.LastName = customerDto.PrimaryContact.LastName;
-                    customer.PrimaryContact.Party ??= new Core.Domain.Party();
+                    customer.PrimaryContact.Party ??= new Party();
                     customer.PrimaryContact.Party.Name = customerDto.PrimaryContact.Party?.Name ?? customer.PrimaryContact.Party.Name;
                     customer.PrimaryContact.Party.Phone = customerDto.PrimaryContact.Party?.Phone ?? customer.PrimaryContact.Party.Phone;
                     customer.PrimaryContact.Party.Email = customerDto.PrimaryContact.Party?.Email ?? customer.PrimaryContact.Party.Email;
@@ -129,7 +119,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SaveCustomer failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -141,15 +131,13 @@ namespace Api.Controllers
             {
                 var customer = _salesService.GetCustomerById(id);
                 if (customer == null)
-                {
-                    return NotFound("Customer not found.");
-                }
+                    return NotFound(new[] { "Customer not found." });
 
-                customer.Party ??= new Core.Domain.Party();
-                customer.PrimaryContact ??= new Core.Domain.Contact { Party = new Core.Domain.Party() };
-                customer.PrimaryContact.Party ??= new Core.Domain.Party();
+                customer.Party ??= new Party();
+                customer.PrimaryContact ??= new Contact { Party = new Party() };
+                customer.PrimaryContact.Party ??= new Party();
 
-                var customerDto = new Dto.Sales.Customer
+                var customerDto = new Customer
                 {
                     Id = customer.Id,
                     No = customer.No,
@@ -168,11 +156,11 @@ namespace Api.Controllers
 
                 if (customer.PrimaryContact != null)
                 {
-                    customerDto.PrimaryContact = new Dto.Sales.Contact
+                    customerDto.PrimaryContact = new Contact
                     {
                         FirstName = customer.PrimaryContact.FirstName,
                         LastName = customer.PrimaryContact.LastName,
-                        Party = new Dto.Sales.Party
+                        Party = new Party
                         {
                             Name = customer.PrimaryContact.Party?.Name,
                             Email = customer.PrimaryContact.Party?.Email,
@@ -188,7 +176,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Customer GET failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -202,7 +190,7 @@ namespace Api.Controllers
                     .Where(p => p.Party != null)
                     ?? Enumerable.Empty<Core.Domain.Sales.Customer>();
 
-                var customersDto = customers.Select(customer => new Dto.Sales.Customer
+                var customersDto = customers.Select(customer => new Customer
                 {
                     Id = customer.Id,
                     No = customer.No,
@@ -225,7 +213,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Customers GET failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -240,13 +228,13 @@ namespace Api.Controllers
             try
             {
                 var salesOrders = _salesService.GetSalesOrders()
-                                  ?? Enumerable.Empty<Core.Domain.Sales.SalesOrderHeader>();
+                                  ?? Enumerable.Empty<SalesOrderHeader>();
 
-                var salesOrdersDto = new List<Dto.Sales.SalesOrder>();
+                var salesOrdersDto = new List<SalesOrder>();
 
                 foreach (var salesOrder in salesOrders)
                 {
-                    var salesOrderDto = new Dto.Sales.SalesOrder
+                    var salesOrderDto = new SalesOrder
                     {
                         Id = salesOrder.Id,
                         PaymentTermId = salesOrder.PaymentTermId,
@@ -257,12 +245,12 @@ namespace Api.Controllers
                         ReferenceNo = salesOrder.ReferenceNo,
                         StatusId = (int)salesOrder.Status.GetValueOrDefault(),
                         No = salesOrder.No,
-                        SalesOrderLines = new List<Dto.Sales.SalesOrderLine>()
+                        SalesOrderLines = new List<SalesOrderLine>()
                     };
 
-                    foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<Core.Domain.Sales.SalesOrderLine>())
+                    foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<SalesOrderLine>())
                     {
-                        salesOrderDto.SalesOrderLines.Add(new Dto.Sales.SalesOrderLine
+                        salesOrderDto.SalesOrderLines.Add(new SalesOrderLine
                         {
                             ItemId = line.ItemId,
                             MeasurementId = line.MeasurementId,
@@ -281,7 +269,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesOrders GET failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -293,11 +281,9 @@ namespace Api.Controllers
             {
                 var salesOrder = _salesService.GetSalesOrderById(id);
                 if (salesOrder == null)
-                {
-                    return NotFound("Sales order not found.");
-                }
+                    return NotFound(new[] { "Sales order not found." });
 
-                var salesOrderDto = new Dto.Sales.SalesOrder
+                var salesOrderDto = new SalesOrder
                 {
                     Id = salesOrder.Id,
                     CustomerId = salesOrder.CustomerId.GetValueOrDefault(),
@@ -307,12 +293,12 @@ namespace Api.Controllers
                     PaymentTermId = salesOrder.PaymentTermId,
                     ReferenceNo = salesOrder.ReferenceNo,
                     StatusId = (int)salesOrder.Status.GetValueOrDefault(),
-                    SalesOrderLines = new List<Dto.Sales.SalesOrderLine>()
+                    SalesOrderLines = new List<SalesOrderLine>()
                 };
 
-                foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<Core.Domain.Sales.SalesOrderLine>())
+                foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<SalesOrderLine>())
                 {
-                    salesOrderDto.SalesOrderLines.Add(new Dto.Sales.SalesOrderLine
+                    salesOrderDto.SalesOrderLines.Add(new SalesOrderLine
                     {
                         Id = line.Id,
                         Amount = line.Amount,
@@ -331,31 +317,29 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesOrder GET failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
         [HttpPost]
         [Route("addsalesorder")]
-        public IActionResult AddSalesOrder([FromBody] Dto.Sales.SalesOrder salesorderDto)
+        public IActionResult AddSalesOrder([FromBody] SalesOrder salesorderDto)
         {
             try
             {
                 if (salesorderDto == null)
-                {
-                    return BadRequest("Sales order data is required.");
-                }
+                    return BadRequest(new[] { "Sales order data is required." });
 
-                var salesOrder = new Core.Domain.Sales.SalesOrderHeader
+                var salesOrder = new SalesOrderHeader
                 {
                     CustomerId = salesorderDto.CustomerId,
                     Date = salesorderDto.OrderDate,
-                    SalesOrderLines = new List<Core.Domain.Sales.SalesOrderLine>()
+                    SalesOrderLines = new List<SalesOrderLine>()
                 };
 
-                foreach (var line in salesorderDto.SalesOrderLines ?? Enumerable.Empty<Dto.Sales.SalesOrderLine>())
+                foreach (var line in salesorderDto.SalesOrderLines ?? Enumerable.Empty<SalesOrderLine>())
                 {
-                    salesOrder.SalesOrderLines.Add(new Core.Domain.Sales.SalesOrderLine
+                    salesOrder.SalesOrderLines.Add(new SalesOrderLine
                     {
                         Amount = line.Amount.GetValueOrDefault(),
                         Discount = line.Discount.GetValueOrDefault(),
@@ -373,20 +357,18 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "AddSalesOrder failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
         [HttpPost]
         [Route("SaveSalesOrder")]
-        public IActionResult SaveSalesOrder([FromBody] Dto.Sales.SalesOrder salesOrderDto)
+        public IActionResult SaveSalesOrder([FromBody] SalesOrder salesOrderDto)
         {
             try
             {
                 if (salesOrderDto == null)
-                {
-                    return BadRequest("Sales order data is required.");
-                }
+                    return BadRequest(new[] { "Sales order data is required." });
 
                 if (!ModelState.IsValid)
                 {
@@ -398,14 +380,14 @@ namespace Api.Controllers
                 }
 
                 bool isNew = salesOrderDto.Id == 0;
-                Core.Domain.Sales.SalesOrderHeader salesOrder;
+                SalesOrderHeader salesOrder;
 
                 if (isNew)
                 {
-                    salesOrder = new Core.Domain.Sales.SalesOrderHeader
+                    salesOrder = new SalesOrderHeader
                     {
                         Status = SalesOrderStatus.Open,
-                        SalesOrderLines = new List<Core.Domain.Sales.SalesOrderLine>()
+                        SalesOrderLines = new List<SalesOrderLine>()
                     };
 
                     if (salesOrderDto.QuotationId != null)
@@ -422,10 +404,9 @@ namespace Api.Controllers
                 {
                     salesOrder = _salesService.GetSalesOrderById(salesOrderDto.Id);
                     if (salesOrder == null)
-                    {
-                        return NotFound("Sales order not found.");
-                    }
-                    salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
+                        return NotFound(new[] { "Sales order not found." });
+
+                    salesOrder.SalesOrderLines ??= new List<SalesOrderLine>();
                 }
 
                 salesOrder.CustomerId = salesOrderDto.CustomerId;
@@ -433,7 +414,7 @@ namespace Api.Controllers
                 salesOrder.PaymentTermId = salesOrderDto.PaymentTermId;
                 salesOrder.ReferenceNo = salesOrderDto.ReferenceNo;
 
-                var incomingLines = salesOrderDto.SalesOrderLines ?? new List<Dto.Sales.SalesOrderLine>();
+                var incomingLines = salesOrderDto.SalesOrderLines ?? new List<SalesOrderLine>();
 
                 foreach (var line in incomingLines)
                 {
@@ -451,7 +432,7 @@ namespace Api.Controllers
                         }
                     }
 
-                    salesOrder.SalesOrderLines.Add(new Core.Domain.Sales.SalesOrderLine
+                    salesOrder.SalesOrderLines.Add(new SalesOrderLine
                     {
                         Amount = line.Amount.GetValueOrDefault(),
                         Discount = line.Discount.GetValueOrDefault(),
@@ -474,9 +455,8 @@ namespace Api.Controllers
                     foreach (var line in deleted)
                     {
                         if (line.SalesInvoiceLines != null && line.SalesInvoiceLines.Any())
-                        {
                             throw new Exception("The line cannot be deleted. An invoice line is created from the item.");
-                        }
+
                         salesOrder.SalesOrderLines.Remove(line);
                     }
 
@@ -504,25 +484,23 @@ namespace Api.Controllers
             {
                 var salesInvoice = _salesService.GetSalesInvoiceById(id);
                 if (salesInvoice == null)
-                {
-                    return NotFound("Sales invoice not found.");
-                }
+                    return NotFound(new[] { "Sales invoice not found." });
 
-                var salesInvoiceDto = new Dto.Sales.SalesInvoice
+                var salesInvoiceDto = new SalesInvoice
                 {
                     Id = salesInvoice.Id,
                     CustomerId = salesInvoice.CustomerId,
                     CustomerName = salesInvoice.Customer?.Party?.Name ?? string.Empty,
                     InvoiceDate = salesInvoice.Date,
-                    SalesInvoiceLines = new List<Dto.Sales.SalesInvoiceLine>(),
+                    SalesInvoiceLines = new List<SalesInvoiceLine>(),
                     PaymentTermId = salesInvoice.PaymentTermId,
                     ReferenceNo = salesInvoice.ReferenceNo,
                     Posted = salesInvoice.GeneralLedgerHeaderId != null
                 };
 
-                foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>())
+                foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
                 {
-                    salesInvoiceDto.SalesInvoiceLines.Add(new Dto.Sales.SalesInvoiceLine
+                    salesInvoiceDto.SalesInvoiceLines.Add(new SalesInvoiceLine
                     {
                         Id = line.Id,
                         Amount = line.Amount,
@@ -536,16 +514,14 @@ namespace Api.Controllers
                 }
 
                 if (!salesInvoiceDto.Posted && salesInvoiceDto.SalesInvoiceLines.Count >= 1)
-                {
                     salesInvoiceDto.ReadyForPosting = true;
-                }
 
                 return Ok(salesInvoiceDto);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesInvoice GET failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -556,13 +532,13 @@ namespace Api.Controllers
             try
             {
                 var salesInvoices = _salesService.GetSalesInvoices()
-                                    ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceHeader>();
+                                    ?? Enumerable.Empty<SalesInvoiceHeader>();
 
-                var salesInvoicesDto = new List<Dto.Sales.SalesInvoice>();
+                var salesInvoicesDto = new List<SalesInvoice>();
 
                 foreach (var salesInvoice in salesInvoices)
                 {
-                    var salesInvoiceDto = new Dto.Sales.SalesInvoice
+                    var salesInvoiceDto = new SalesInvoice
                     {
                         Id = salesInvoice.Id,
                         No = salesInvoice.No,
@@ -571,12 +547,12 @@ namespace Api.Controllers
                         InvoiceDate = salesInvoice.Date,
                         ReferenceNo = salesInvoice.ReferenceNo,
                         Posted = salesInvoice.GeneralLedgerHeaderId != null,
-                        SalesInvoiceLines = new List<Dto.Sales.SalesInvoiceLine>()
+                        SalesInvoiceLines = new List<SalesInvoiceLine>()
                     };
 
-                    foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>())
+                    foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
                     {
-                        salesInvoiceDto.SalesInvoiceLines.Add(new Dto.Sales.SalesInvoiceLine
+                        salesInvoiceDto.SalesInvoiceLines.Add(new SalesInvoiceLine
                         {
                             ItemId = line.ItemId,
                             MeasurementId = line.MeasurementId,
@@ -594,20 +570,18 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesInvoices GET failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
         [HttpPost]
         [Route("PostSalesInvoice")]
-        public IActionResult PostSalesInvoice([FromBody] Dto.Sales.SalesInvoice salesInvoiceDto)
+        public IActionResult PostSalesInvoice([FromBody] SalesInvoice salesInvoiceDto)
         {
             try
             {
                 if (salesInvoiceDto == null || salesInvoiceDto.Id <= 0)
-                {
-                    return BadRequest("A valid sales invoice is required.");
-                }
+                    return BadRequest(new[] { "A valid sales invoice is required." });
 
                 if (!ModelState.IsValid)
                 {
@@ -631,14 +605,12 @@ namespace Api.Controllers
 
         [HttpPost]
         [Route("SaveSalesInvoice")]
-        public IActionResult SaveSalesInvoice([FromBody] Dto.Sales.SalesInvoice salesInvoiceDto)
+        public IActionResult SaveSalesInvoice([FromBody] SalesInvoice salesInvoiceDto)
         {
             try
             {
                 if (salesInvoiceDto == null)
-                {
-                    return BadRequest("Sales invoice data is required.");
-                }
+                    return BadRequest(new[] { "Sales invoice data is required." });
 
                 if (!ModelState.IsValid)
                 {
@@ -650,41 +622,42 @@ namespace Api.Controllers
                 }
 
                 bool isNew = salesInvoiceDto.Id == 0;
-                Core.Domain.Sales.SalesInvoiceHeader salesInvoice;
-                Core.Domain.Sales.SalesOrderHeader salesOrder = null;
+                SalesInvoiceHeader salesInvoice;
+                SalesOrderHeader salesOrder = null;
 
                 if (isNew)
                 {
-                    // Create or load related sales order
                     if (salesInvoiceDto.FromSalesOrderId.HasValue)
                     {
                         salesOrder = _salesService.GetSalesOrderById(salesInvoiceDto.FromSalesOrderId.Value);
+                        if (salesOrder == null)
+                            return NotFound(new[] { "Sales order not found." });
                     }
                     else
                     {
-                        salesOrder = new Core.Domain.Sales.SalesOrderHeader
+                        salesOrder = new SalesOrderHeader
                         {
                             Date = salesInvoiceDto.InvoiceDate,
                             PaymentTermId = salesInvoiceDto.PaymentTermId,
                             CustomerId = salesInvoiceDto.CustomerId,
                             ReferenceNo = salesInvoiceDto.ReferenceNo,
                             Status = SalesOrderStatus.FullyInvoiced,
-                            SalesOrderLines = new List<Core.Domain.Sales.SalesOrderLine>()
+                            SalesOrderLines = new List<SalesOrderLine>()
                         };
                     }
 
-                    salesInvoice = new Core.Domain.Sales.SalesInvoiceHeader
+                    salesInvoice = new SalesInvoiceHeader
                     {
                         CustomerId = salesInvoiceDto.CustomerId,
                         Date = salesInvoiceDto.InvoiceDate,
                         PaymentTermId = salesInvoiceDto.PaymentTermId,
                         ReferenceNo = salesInvoiceDto.ReferenceNo,
-                        SalesInvoiceLines = new List<Core.Domain.Sales.SalesInvoiceLine>()
+                        SalesInvoiceLines = new List<SalesInvoiceLine>()
                     };
 
-                    foreach (var line in salesInvoiceDto.SalesInvoiceLines ?? Enumerable.Empty<Dto.Sales.SalesInvoiceLine>())
+                    foreach (var line in salesInvoiceDto.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
                     {
-                        var salesInvoiceLine = new Core.Domain.Sales.SalesInvoiceLine
+                        var salesInvoiceLine = new SalesInvoiceLine
                         {
                             Amount = line.Amount.GetValueOrDefault(),
                             Discount = line.Discount.GetValueOrDefault(),
@@ -693,15 +666,13 @@ namespace Api.Controllers
                             MeasurementId = line.MeasurementId.GetValueOrDefault()
                         };
 
-                        // Link to existing order line if provided
                         if (line.Id != 0 && salesOrder != null)
                         {
                             salesInvoiceLine.SalesOrderLineId = line.Id;
                         }
                         else if (salesOrder != null)
                         {
-                            // Create corresponding order line
-                            var salesOrderLine = new Core.Domain.Sales.SalesOrderLine
+                            var salesOrderLine = new SalesOrderLine
                             {
                                 Amount = line.Amount.GetValueOrDefault(),
                                 Discount = line.Discount.GetValueOrDefault(),
@@ -710,7 +681,7 @@ namespace Api.Controllers
                                 MeasurementId = line.MeasurementId.GetValueOrDefault()
                             };
 
-                            salesOrder.SalesOrderLines ??= new List<Core.Domain.Sales.SalesOrderLine>();
+                            salesOrder.SalesOrderLines ??= new List<SalesOrderLine>();
                             salesOrder.SalesOrderLines.Add(salesOrderLine);
                             salesInvoiceLine.SalesOrderLine = salesOrderLine;
                         }
@@ -722,22 +693,18 @@ namespace Api.Controllers
                 {
                     salesInvoice = _salesService.GetSalesInvoiceById(salesInvoiceDto.Id);
                     if (salesInvoice == null)
-                    {
-                        return NotFound("Sales invoice not found.");
-                    }
+                        return NotFound(new[] { "Sales invoice not found." });
 
                     if (salesInvoice.GeneralLedgerHeaderId.HasValue)
-                    {
                         throw new Exception("Invoice is already posted. Update is not allowed.");
-                    }
 
                     salesInvoice.Date = salesInvoiceDto.InvoiceDate;
                     salesInvoice.PaymentTermId = salesInvoiceDto.PaymentTermId;
                     salesInvoice.ReferenceNo = salesInvoiceDto.ReferenceNo;
                     salesInvoice.CustomerId = salesInvoiceDto.CustomerId;
-                    salesInvoice.SalesInvoiceLines ??= new List<Core.Domain.Sales.SalesInvoiceLine>();
+                    salesInvoice.SalesInvoiceLines ??= new List<SalesInvoiceLine>();
 
-                    var incomingLines = salesInvoiceDto.SalesInvoiceLines ?? new List<Dto.Sales.SalesInvoiceLine>();
+                    var incomingLines = salesInvoiceDto.SalesInvoiceLines ?? new List<SalesInvoiceLine>();
 
                     foreach (var line in incomingLines)
                     {
@@ -754,27 +721,23 @@ namespace Api.Controllers
                         }
                         else
                         {
-                            var salesInvoiceLine = new Core.Domain.Sales.SalesInvoiceLine
+                            salesInvoice.SalesInvoiceLines.Add(new SalesInvoiceLine
                             {
                                 Amount = line.Amount.GetValueOrDefault(),
                                 Discount = line.Discount.GetValueOrDefault(),
                                 Quantity = line.Quantity.GetValueOrDefault(),
                                 ItemId = line.ItemId.GetValueOrDefault(),
                                 MeasurementId = line.MeasurementId.GetValueOrDefault()
-                            };
-                            salesInvoice.SalesInvoiceLines.Add(salesInvoiceLine);
+                            });
                         }
                     }
 
-                    // Remove deleted lines
                     var deleted = salesInvoice.SalesInvoiceLines
                         .Where(line => line.Id != 0 && !incomingLines.Any(x => x.Id == line.Id))
                         .ToList();
 
                     foreach (var line in deleted)
-                    {
                         salesInvoice.SalesInvoiceLines.Remove(line);
-                    }
                 }
 
                 _logger.LogInformation("SaveSalesInvoice API CustomerId={CustomerId}", salesInvoice.CustomerId);
@@ -800,13 +763,13 @@ namespace Api.Controllers
             try
             {
                 var quotes = _salesService.GetSalesQuotes()
-                             ?? Enumerable.Empty<Core.Domain.Sales.SalesQuoteHeader>();
+                             ?? Enumerable.Empty<SalesQuoteHeader>();
 
-                var quoteDtos = new List<Dto.Sales.SalesQuotation>();
+                var quoteDtos = new List<SalesQuotation>();
 
                 foreach (var quote in quotes)
                 {
-                    var quoteDto = new Dto.Sales.SalesQuotation
+                    var quoteDto = new SalesQuotation
                     {
                         Id = quote.Id,
                         No = quote.No,
@@ -817,12 +780,12 @@ namespace Api.Controllers
                         ReferenceNo = quote.ReferenceNo,
                         SalesQuoteStatus = quote.Status.ToString(),
                         StatusId = (int)quote.Status,
-                        SalesQuotationLines = new List<Dto.Sales.SalesQuotationLine>()
+                        SalesQuotationLines = new List<SalesQuotationLine>()
                     };
 
-                    foreach (var line in quote.SalesQuoteLines ?? Enumerable.Empty<Core.Domain.Sales.SalesQuoteLine>())
+                    foreach (var line in quote.SalesQuoteLines ?? Enumerable.Empty<SalesQuoteLine>())
                     {
-                        quoteDto.SalesQuotationLines.Add(new Dto.Sales.SalesQuotationLine
+                        quoteDto.SalesQuotationLines.Add(new SalesQuotationLine
                         {
                             ItemId = line.ItemId,
                             MeasurementId = line.MeasurementId,
@@ -840,7 +803,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Quotations GET failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -852,11 +815,9 @@ namespace Api.Controllers
             {
                 var quote = _salesService.GetSalesQuotationById(id);
                 if (quote == null)
-                {
-                    return NotFound("Quotation not found.");
-                }
+                    return NotFound(new[] { "Quotation not found." });
 
-                var quoteDto = new Dto.Sales.SalesQuotation
+                var quoteDto = new SalesQuotation
                 {
                     Id = quote.Id,
                     CustomerId = quote.CustomerId,
@@ -865,12 +826,12 @@ namespace Api.Controllers
                     PaymentTermId = quote.PaymentTermId,
                     ReferenceNo = quote.ReferenceNo,
                     StatusId = (int)quote.Status,
-                    SalesQuotationLines = new List<Dto.Sales.SalesQuotationLine>()
+                    SalesQuotationLines = new List<SalesQuotationLine>()
                 };
 
-                foreach (var line in quote.SalesQuoteLines ?? Enumerable.Empty<Core.Domain.Sales.SalesQuoteLine>())
+                foreach (var line in quote.SalesQuoteLines ?? Enumerable.Empty<SalesQuoteLine>())
                 {
-                    var lineDto = new Dto.Sales.SalesQuotationLine
+                    quoteDto.SalesQuotationLines.Add(new SalesQuotationLine
                     {
                         Id = line.Id,
                         ItemId = line.ItemId,
@@ -880,9 +841,7 @@ namespace Api.Controllers
                         Discount = line.Discount,
                         ItemDescription = line.Item?.Description,
                         MeasurementDescription = line.Measurement?.Description
-                    };
-
-                    quoteDto.SalesQuotationLines.Add(lineDto);
+                    });
                 }
 
                 return Ok(quoteDto);
@@ -890,20 +849,18 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Quotation GET failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
         [HttpPost]
         [Route("SaveQuotation")]
-        public IActionResult SaveQuotation([FromBody] Dto.Sales.SalesQuotation quotationDto)
+        public IActionResult SaveQuotation([FromBody] SalesQuotation quotationDto)
         {
             try
             {
                 if (quotationDto == null)
-                {
-                    return BadRequest("Quotation data is required.");
-                }
+                    return BadRequest(new[] { "Quotation data is required." });
 
                 if (!ModelState.IsValid)
                 {
@@ -915,25 +872,24 @@ namespace Api.Controllers
                 }
 
                 bool isNew = quotationDto.Id == 0;
-                Core.Domain.Sales.SalesQuoteHeader salesQuote;
+                SalesQuoteHeader salesQuote;
 
                 if (isNew)
                 {
-                    salesQuote = new Core.Domain.Sales.SalesQuoteHeader
+                    salesQuote = new SalesQuoteHeader
                     {
                         Status = SalesQuoteStatus.Draft,
-                        SalesQuoteLines = new List<Core.Domain.Sales.SalesQuoteLine>()
+                        SalesQuoteLines = new List<SalesQuoteLine>()
                     };
                 }
                 else
                 {
                     salesQuote = _salesService.GetSalesQuotationById(quotationDto.Id);
                     if (salesQuote == null)
-                    {
-                        return NotFound("Quotation not found.");
-                    }
+                        return NotFound(new[] { "Quotation not found." });
+
                     salesQuote.Status = (SalesQuoteStatus)quotationDto.StatusId;
-                    salesQuote.SalesQuoteLines ??= new List<Core.Domain.Sales.SalesQuoteLine>();
+                    salesQuote.SalesQuoteLines ??= new List<SalesQuoteLine>();
                 }
 
                 salesQuote.CustomerId = quotationDto.CustomerId.GetValueOrDefault();
@@ -941,7 +897,7 @@ namespace Api.Controllers
                 salesQuote.ReferenceNo = quotationDto.ReferenceNo;
                 salesQuote.PaymentTermId = quotationDto.PaymentTermId;
 
-                var incomingLines = quotationDto.SalesQuotationLines ?? new List<Dto.Sales.SalesQuotationLine>();
+                var incomingLines = quotationDto.SalesQuotationLines ?? new List<SalesQuotationLine>();
 
                 foreach (var line in incomingLines)
                 {
@@ -959,7 +915,7 @@ namespace Api.Controllers
                         }
                     }
 
-                    salesQuote.SalesQuoteLines.Add(new Core.Domain.Sales.SalesQuoteLine
+                    salesQuote.SalesQuoteLines.Add(new SalesQuoteLine
                     {
                         Amount = line.Amount ?? 0,
                         Discount = line.Discount ?? 0,
@@ -980,9 +936,7 @@ namespace Api.Controllers
                         .ToList();
 
                     foreach (var line in deleted)
-                    {
                         salesQuote.SalesQuoteLines.Remove(line);
-                    }
 
                     _salesService.UpdateSalesQuote(salesQuote);
                 }
@@ -1008,7 +962,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "BookQuotation failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -1023,9 +977,9 @@ namespace Api.Controllers
             try
             {
                 var salesReceipts = _salesService.GetSalesReceipts()
-                                    ?? Enumerable.Empty<Core.Domain.Sales.SalesReceiptHeader>();
+                                    ?? Enumerable.Empty<SalesReceiptHeader>();
 
-                var salesReceiptsDto = salesReceipts.Select(salesReceipt => new Dto.Sales.SalesReceipt
+                var salesReceiptsDto = salesReceipts.Select(salesReceipt => new SalesReceipt
                 {
                     Id = salesReceipt.Id,
                     ReceiptNo = salesReceipt.No,
@@ -1041,7 +995,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesReceipts GET failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -1053,11 +1007,9 @@ namespace Api.Controllers
             {
                 var salesReceipt = _salesService.GetSalesReceiptById(id);
                 if (salesReceipt == null)
-                {
-                    return NotFound("Sales receipt not found.");
-                }
+                    return NotFound(new[] { "Sales receipt not found." });
 
-                var salesReceiptDto = new Dto.Sales.SalesReceipt
+                var salesReceiptDto = new SalesReceipt
                 {
                     Id = salesReceipt.Id,
                     ReceiptNo = salesReceipt.No,
@@ -1073,7 +1025,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesReceipt GET failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -1084,25 +1036,25 @@ namespace Api.Controllers
             try
             {
                 var invoices = _salesService.GetCustomerInvoices(id)
-                               ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceHeader>();
+                               ?? Enumerable.Empty<SalesInvoiceHeader>();
 
-                var invoicesDto = new List<Dto.Sales.SalesInvoice>();
+                var invoicesDto = new List<SalesInvoice>();
 
                 foreach (var invoice in invoices)
                 {
-                    var invoiceDto = new Dto.Sales.SalesInvoice
+                    var invoiceDto = new SalesInvoice
                     {
                         Id = invoice.Id,
                         InvoiceDate = invoice.Date,
                         CustomerId = invoice.CustomerId,
                         TotalAllocatedAmount = invoice.CustomerAllocations?.Sum(i => i.Amount) ?? 0,
                         Posted = invoice.GeneralLedgerHeaderId.HasValue,
-                        SalesInvoiceLines = new List<Dto.Sales.SalesInvoiceLine>()
+                        SalesInvoiceLines = new List<SalesInvoiceLine>()
                     };
 
-                    foreach (var line in invoice.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>())
+                    foreach (var line in invoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
                     {
-                        invoiceDto.SalesInvoiceLines.Add(new Dto.Sales.SalesInvoiceLine
+                        invoiceDto.SalesInvoiceLines.Add(new SalesInvoiceLine
                         {
                             Id = line.Id,
                             Amount = line.Amount,
@@ -1121,7 +1073,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "CustomerInvoices GET failed for customer {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -1129,12 +1081,11 @@ namespace Api.Controllers
         [Route("SaveReceipt")]
         public IActionResult SaveReceipt([FromBody] dynamic receiptDto)
         {
+            // NOTE: Prefer a strongly-typed DTO instead of dynamic for production.
             try
             {
                 if (receiptDto == null)
-                {
-                    return BadRequest("Receipt data is required.");
-                }
+                    return BadRequest(new[] { "Receipt data is required." });
 
                 int? accountToDebitId = (int?)receiptDto.AccountToDebitId;
                 int? accountToCreditId = (int?)receiptDto.AccountToCreditId;
@@ -1145,38 +1096,32 @@ namespace Api.Controllers
                 if (!accountToDebitId.HasValue || !accountToCreditId.HasValue ||
                     !customerId.HasValue || !amount.HasValue || !receiptDate.HasValue)
                 {
-                    return BadRequest("Receipt payload is incomplete.");
+                    return BadRequest(new[] { "Receipt payload is incomplete." });
                 }
 
                 var bank = _financialService.GetCashAndBanks()?
                     .FirstOrDefault(b => b.Id == accountToDebitId.Value);
 
                 if (bank == null)
-                {
-                    return BadRequest("Invalid debit account.");
-                }
+                    return BadRequest(new[] { "Invalid debit account." });
 
                 var customer = _salesService.GetCustomerById(customerId.Value);
                 if (customer == null)
-                {
-                    return BadRequest("Invalid customer.");
-                }
+                    return BadRequest(new[] { "Invalid customer." });
 
                 if (customer.CustomerAdvancesAccountId != accountToCreditId.Value)
-                {
-                    return BadRequest("Invalid credit account for this customer.");
-                }
+                    return BadRequest(new[] { "Invalid credit account for this customer." });
 
-                var salesReceipt = new Core.Domain.Sales.SalesReceiptHeader
+                var salesReceipt = new SalesReceiptHeader
                 {
                     Date = receiptDate.Value,
                     CustomerId = customerId.Value,
                     AccountToDebitId = bank.AccountId,
                     Amount = amount.Value,
-                    SalesReceiptLines = new List<Core.Domain.Sales.SalesReceiptLine>()
+                    SalesReceiptLines = new List<SalesReceiptLine>()
                 };
 
-                salesReceipt.SalesReceiptLines.Add(new Core.Domain.Sales.SalesReceiptLine
+                salesReceipt.SalesReceiptLines.Add(new SalesReceiptLine
                 {
                     AccountToCreditId = accountToCreditId.Value,
                     AmountPaid = amount.Value,
@@ -1198,46 +1143,62 @@ namespace Api.Controllers
         [Route("SaveAllocation")]
         public IActionResult SaveAllocation([FromBody] dynamic allocationDto)
         {
+            // NOTE: Prefer a strongly-typed DTO instead of dynamic for production.
             try
             {
                 if (allocationDto == null)
-                {
-                    return BadRequest("Allocation data is required.");
-                }
+                    return BadRequest(new[] { "Allocation data is required." });
 
                 int? customerId = (int?)allocationDto.CustomerId;
                 int? receiptId = (int?)allocationDto.ReceiptId;
                 DateTime? date = (DateTime?)allocationDto.Date;
 
                 if (!customerId.HasValue || !receiptId.HasValue || !date.HasValue)
-                {
-                    return BadRequest("Allocation payload is incomplete.");
-                }
+                    return BadRequest(new[] { "Allocation payload is incomplete." });
 
                 var allocationLines = allocationDto.AllocationLines;
                 if (allocationLines == null)
-                {
-                    return BadRequest("Allocation lines are required.");
-                }
+                    return BadRequest(new[] { "Allocation lines are required." });
+
+                var receipt = _salesService.GetSalesReceiptById(receiptId.Value);
+                if (receipt == null || receipt.CustomerId != customerId.Value)
+                    return BadRequest(new[] { "Invalid receipt for this customer." });
+
+                decimal totalToAllocate = 0;
 
                 foreach (var line in allocationLines)
                 {
                     decimal? amount = (decimal?)line.AmountToAllocate;
                     int? invoiceId = (int?)line.InvoiceId;
 
-                    if (amount.HasValue && amount.Value > 0 && invoiceId.HasValue)
-                    {
-                        var allocation = new Core.Domain.Sales.CustomerAllocation
-                        {
-                            CustomerId = customerId.Value,
-                            Date = date.Value,
-                            SalesInvoiceHeaderId = invoiceId.Value,
-                            SalesReceiptHeaderId = receiptId.Value,
-                            Amount = amount.Value
-                        };
+                    if (!amount.HasValue || amount.Value <= 0 || !invoiceId.HasValue)
+                        return BadRequest(new[] { "Each allocation line must contain a positive amount and invoice." });
 
-                        _salesService.SaveCustomerAllocation(allocation);
-                    }
+                    var invoice = _salesService.GetSalesInvoiceById(invoiceId.Value);
+                    if (invoice == null || invoice.CustomerId != customerId.Value)
+                        return BadRequest(new[] { "Invalid invoice for this customer." });
+
+                    totalToAllocate += amount.Value;
+                }
+
+                if (totalToAllocate > receipt.AvailableAmountToAllocate)
+                    return BadRequest(new[] { "Allocation amount exceeds the receipt balance." });
+
+                foreach (var line in allocationLines)
+                {
+                    decimal amount = (decimal)line.AmountToAllocate;
+                    int invoiceId = (int)line.InvoiceId;
+
+                    var allocation = new CustomerAllocation
+                    {
+                        CustomerId = customerId.Value,
+                        Date = date.Value,
+                        SalesInvoiceHeaderId = invoiceId,
+                        SalesReceiptHeaderId = receiptId.Value,
+                        Amount = amount
+                    };
+
+                    _salesService.SaveCustomerAllocation(allocation);
                 }
 
                 return Ok();
@@ -1261,7 +1222,7 @@ namespace Api.Controllers
             {
                 var salesInvoices = _salesService.GetSalesInvoices()?
                     .Where(a => a.GeneralLedgerHeaderId != null)
-                    ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceHeader>();
+                    ?? Enumerable.Empty<SalesInvoiceHeader>();
 
                 var monthlyTotals = new Dictionary<int, decimal>();
 
@@ -1270,9 +1231,11 @@ namespace Api.Controllers
                     int month = item.Date.Month;
                     decimal lineTotal = 0;
 
-                    foreach (var line in item.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>())
+                    foreach (var line in item.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
                     {
-                        lineTotal += (line.Amount ?? 0) * (line.Quantity ?? 0);
+                        var gross = (line.Amount ?? 0) * (line.Quantity ?? 0);
+                        var discount = gross * ((line.Discount ?? 0) / 100m);
+                        lineTotal += gross - discount;
                     }
 
                     if (monthlyTotals.ContainsKey(month))
@@ -1281,14 +1244,14 @@ namespace Api.Controllers
                         monthlyTotals[month] = lineTotal;
                 }
 
-                var finalMonthlySalesDto = new List<Dto.Sales.MonthlySales>();
+                var finalMonthlySalesDto = new List<MonthlySales>();
 
                 for (int i = 1; i <= DateTime.Now.Month; i++)
                 {
                     var monthName = new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM");
                     monthlyTotals.TryGetValue(i, out var amount);
 
-                    finalMonthlySalesDto.Add(new Dto.Sales.MonthlySales
+                    finalMonthlySalesDto.Add(new MonthlySales
                     {
                         Month = monthName,
                         Amount = amount
@@ -1300,7 +1263,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetMonthlySales failed.");
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -1312,20 +1275,18 @@ namespace Api.Controllers
             {
                 var salesInvoice = _salesService.GetSalesInvoiceById(id);
                 if (salesInvoice == null)
-                {
-                    return NotFound("Sales invoice not found.");
-                }
+                    return NotFound(new[] { "Sales invoice not found." });
 
                 var company = _adminService.GetDefaultCompany();
 
-                var salesInvoiceDto = new Dto.Sales.SalesInvoice
+                var salesInvoiceDto = new SalesInvoice
                 {
                     Id = salesInvoice.Id,
                     CustomerId = salesInvoice.CustomerId,
                     CustomerName = salesInvoice.Customer?.Party?.Name ?? string.Empty,
                     CustomerEmail = salesInvoice.Customer?.Party?.Email,
                     InvoiceDate = salesInvoice.Date,
-                    SalesInvoiceLines = new List<Dto.Sales.SalesInvoiceLine>(),
+                    SalesInvoiceLines = new List<SalesInvoiceLine>(),
                     PaymentTermId = salesInvoice.PaymentTermId,
                     ReferenceNo = salesInvoice.ReferenceNo,
                     Posted = salesInvoice.GeneralLedgerHeaderId != null,
@@ -1333,15 +1294,21 @@ namespace Api.Controllers
                 };
 
                 decimal totalTax = 0;
-                var lines = salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<Core.Domain.Sales.SalesInvoiceLine>();
-                var subtotal = lines.Sum(line => (line.Amount ?? 0) * (line.Quantity ?? 0));
+                var lines = salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>();
+
+                var subtotal = lines.Sum(line =>
+                {
+                    var lineTotal = (line.Amount ?? 0) * (line.Quantity ?? 0);
+                    var discount = lineTotal * ((line.Discount ?? 0) / 100m);
+                    return lineTotal - discount;
+                });
 
                 foreach (var line in lines)
                 {
                     var item = _inventoryService.GetItemById(line.ItemId);
                     var measurement = _inventoryService.GetMeasurementById(line.MeasurementId);
 
-                    var lineDto = new Dto.Sales.SalesInvoiceLine
+                    var lineDto = new SalesInvoiceLine
                     {
                         Id = line.Id,
                         Amount = line.Amount,
@@ -1376,7 +1343,7 @@ namespace Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SalesInvoiceForPrinting failed for id {Id}.", id);
-                return BadRequest(ex.InnerException?.Message ?? ex.Message);
+                return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
         }
     }
