@@ -114,10 +114,13 @@ namespace Api.Data
             try
             {
                 // Security Roles
-                if (_securityService.GetRole("SystemAdministrators").Id > 0)
-                    _securityService.DeleteRole(_securityService.GetRole("SystemAdministrators").Id);
-                if (_securityService.GetRole("GeneralUsers").Id > 0)
-                    _securityService.DeleteRole(_securityService.GetRole("SystemAdministrators").Id);
+                var systemAdministrators = _securityService.GetRole("SystemAdministrators");
+                if (systemAdministrators != null && systemAdministrators.Id > 0)
+                    _securityService.DeleteRole(systemAdministrators.Id);
+
+                var generalUsers = _securityService.GetRole("GeneralUsers");
+                if (generalUsers != null && generalUsers.Id > 0)
+                    _securityService.DeleteRole(generalUsers.Id);
 
                 // Banks
 

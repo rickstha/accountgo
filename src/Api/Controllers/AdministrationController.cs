@@ -251,7 +251,7 @@ namespace Api.Controllers
         {
             try
             {
-                var mainGroups = _securityService.GetAllSecurityMainGroup()
+                var mainGroups = _securityService.GetAllSecurityGroup()
                                  ?? Enumerable.Empty<Core.Domain.Security.SecurityGroup>();
 
                 var groupsDto = mainGroups.Select(mainGroup => new Group
