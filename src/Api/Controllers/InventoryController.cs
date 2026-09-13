@@ -1,28 +1,24 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Dto.Inventory;
-using Services.Administration;
 using Services.Inventory;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 
 namespace Api.Controllers
 {
-    
     [ApiController]
     [Route("api/[controller]")]
     public class InventoryController : BaseController
     {
-        private readonly IAdministrationService _adminService;
         private readonly IInventoryService _inventoryService;
         private readonly ILogger<InventoryController> _logger;
 
         public InventoryController(
-            IAdministrationService adminService,
             IInventoryService inventoryService,
             ILogger<InventoryController> logger)
         {
-            _adminService = adminService;
             _inventoryService = inventoryService;
             _logger = logger;
         }
@@ -62,15 +58,15 @@ namespace Api.Controllers
                 else
                 {
                     item = _inventoryService.GetItemById(itemDto.Id);
-
                     if (item == null)
                     {
                         return NotFound($"Item with Id {itemDto.Id} not found.");
                     }
                 }
 
-                _logger.LogInformation("Saving Item. IsNew: {IsNew}", isNew);
+                _logger.LogInformation("Saving Item. IsNew: {IsNew}, Id: {Id}", isNew, itemDto.Id);
 
+                // Map fields
                 item.No = itemDto.No;
                 item.Code = itemDto.Code;
                 item.Description = itemDto.Description;
@@ -100,7 +96,7 @@ namespace Api.Controllers
 
                 return Ok(new { message = "Item saved successfully." });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while saving item");
                 return StatusCode(500, new { message = "An error occurred while saving the item." });
@@ -120,36 +116,11 @@ namespace Api.Controllers
                 var items = _inventoryService.GetAllItems()
                             ?? Enumerable.Empty<Core.Domain.Items.Item>();
 
-                var itemsDto = new List<Item>();
-
-                foreach (var item in items)
-                {
-                    itemsDto.Add(new Item
-                    {
-                        Id = item.Id,
-                        Code = item.Code,
-                        Description = item.Description,
-                        ItemTaxGroupName = item.ItemTaxGroup?.Name ?? "",
-                        Measurement = item.PurchaseMeasurement?.Description ?? "",
-                        Cost = item.Cost,
-                        Price = item.Price,
-                        QuantityOnHand = item.ComputeQuantityOnHand(),
-                        ItemCategoryId = item.ItemCategoryId,
-                        SmallestMeasurementId = item.SmallestMeasurementId,
-                        SellMeasurementId = item.SellMeasurementId,
-                        PurchaseMeasurementId = item.PurchaseMeasurementId,
-                        PreferredVendorId = item.PreferredVendorId,
-                        ItemTaxGroupId = item.ItemTaxGroupId,
-                        SalesAccountId = item.SalesAccountId,
-                        InventoryAccountId = item.InventoryAccountId,
-                        CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
-                        InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
-                    });
-                }
+                var itemsDto = items.Select(MapToDto).ToList();
 
                 return Ok(itemsDto);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while getting items");
                 return StatusCode(500, new { message = "An error occurred while retrieving items." });
@@ -166,40 +137,22 @@ namespace Api.Controllers
         {
             try
             {
-                var item = _inventoryService.GetItemById(id);
+                if (id <= 0)
+                {
+                    return BadRequest("A valid item id is required.");
+                }
 
+                var item = _inventoryService.GetItemById(id);
                 if (item == null)
                 {
                     return NotFound($"Item with Id {id} not found.");
                 }
 
-                var itemDto = new Item
-                {
-                    Id = item.Id,
-                    Code = item.Code,
-                    Description = item.Description,
-                    Cost = item.Cost,
-                    Price = item.Price,
-                    SellDescription = item.SellDescription,
-                    PurchaseDescription = item.PurchaseDescription,
-                    QuantityOnHand = item.ComputeQuantityOnHand(),
-                    ItemCategoryId = item.ItemCategoryId,
-                    SmallestMeasurementId = item.SmallestMeasurementId,
-                    SellMeasurementId = item.SellMeasurementId,
-                    PurchaseMeasurementId = item.PurchaseMeasurementId,
-                    PreferredVendorId = item.PreferredVendorId,
-                    ItemTaxGroupId = item.ItemTaxGroupId,
-                    SalesAccountId = item.SalesAccountId,
-                    InventoryAccountId = item.InventoryAccountId,
-                    CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
-                    InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
-                };
-
-                return Ok(itemDto);
+                return Ok(MapToDto(item));
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while getting item");
+                _logger.LogError(ex, "Error while getting item {Id}", id);
                 return StatusCode(500, new { message = "An error occurred while retrieving the item." });
             }
         }
@@ -218,30 +171,59 @@ namespace Api.Controllers
                     _inventoryService.GetInventoryControlJournals()
                     ?? Enumerable.Empty<Core.Domain.Items.InventoryControlJournal>();
 
-                var icjDto = new List<InventoryControlJournal>();
-
-                foreach (var icj in invControlJournals)
+                var icjDto = invControlJournals.Select(icj => new InventoryControlJournal
                 {
-                    icjDto.Add(new InventoryControlJournal
-                    {
-                        Id = icj.Id,
-                        In = icj.INQty,
-                        Out = icj.OUTQty,
-                        Item = icj.Item?.Description ?? "",
-                        Measurement = icj.Measurement?.Code ?? "",
-                        Date = icj.Date
-                    });
-                }
+                    Id = icj.Id,
+                    In = icj.INQty,
+                    Out = icj.OUTQty,
+                    Item = icj.Item?.Description ?? string.Empty,
+                    Measurement = icj.Measurement?.Code ?? string.Empty,
+                    Date = icj.Date
+                }).ToList();
 
                 _logger.LogInformation("ICJ Count: {Count}", icjDto.Count);
 
                 return Ok(icjDto);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while getting ICJ");
                 return StatusCode(500, new { message = "An error occurred while retrieving inventory control journals." });
             }
+        }
+
+        // =====================================================
+        // PRIVATE HELPERS
+        // =====================================================
+
+        private static Item MapToDto(Core.Domain.Items.Item item)
+        {
+            return new Item
+            {
+                Id = item.Id,
+                No = item.No,
+                Code = item.Code,
+                Description = item.Description,
+                SellDescription = item.SellDescription,
+                PurchaseDescription = item.PurchaseDescription,
+                Cost = item.Cost,
+                Price = item.Price,
+                QuantityOnHand = item.ComputeQuantityOnHand(),
+                ItemCategoryId = item.ItemCategoryId,
+                SmallestMeasurementId = item.SmallestMeasurementId,
+                SellMeasurementId = item.SellMeasurementId,
+                PurchaseMeasurementId = item.PurchaseMeasurementId,
+                PreferredVendorId = item.PreferredVendorId,
+                ItemTaxGroupId = item.ItemTaxGroupId,
+                SalesAccountId = item.SalesAccountId,
+                InventoryAccountId = item.InventoryAccountId,
+                CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
+                InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId,
+
+                // Display helpers (populated when navigation properties are loaded)
+                ItemTaxGroupName = item.ItemTaxGroup?.Name ?? string.Empty,
+                Measurement = item.PurchaseMeasurement?.Description ?? string.Empty
+            };
         }
     }
 }
