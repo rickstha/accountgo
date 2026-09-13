@@ -78,6 +78,7 @@ namespace Api.Controllers
                     });
                 }
             }
+
             else
             {
                 return BadRequest("Invalid partyType. Use 1 for Customer or 2 for Vendor.");
@@ -90,9 +91,14 @@ namespace Api.Controllers
         [Route("Contact")]
         public IActionResult Contact(int id, int partyId, int partyType)
         {
-            if (id <= 0)
+            if (id <= 0 || partyId <= 0)
             {
-                return BadRequest("id is required.");
+                return BadRequest("id and partyId are required.");
+            }
+
+            if (partyType != PartyTypeCustomer && partyType != PartyTypeVendor)
+            {
+                return BadRequest("Invalid partyType. Use 1 for Customer or 2 for Vendor.");
             }
 
             // NOTE: If your service still has the typo "GetContacyById", change this back.
@@ -137,6 +143,17 @@ namespace Api.Controllers
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            if (model.HoldingPartyId <= 0)
+            {
+                return BadRequest("HoldingPartyId is required.");
+            }
+
+            if (model.HoldingPartyType != PartyTypeCustomer &&
+                model.HoldingPartyType != PartyTypeVendor)
+            {
+                return BadRequest("Invalid HoldingPartyType. Use 1 for Customer or 2 for Vendor.");
             }
 
             try
