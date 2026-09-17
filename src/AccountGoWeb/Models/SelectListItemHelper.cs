@@ -1,147 +1,165 @@
-﻿namespace AccountGoWeb.Models;
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 
-public static class SelectListItemHelper
+namespace AccountGoWeb.Models
 {
-    public static IConfiguration? _config;
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> Accounts()
+    public static class SelectListItemHelper
     {
-        var accounts = GetAsync<IEnumerable<Dto.Financial.Account>>("common/postingaccounts").Result;
+        public static IConfiguration? _config;
 
-        var selectAccounts = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectAccounts.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var account in accounts)
-            selectAccounts.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = account.Id.ToString(), Text = account.AccountName });
+        // Reusable HttpClient (better than creating one every time)
+        private static readonly HttpClient _httpClient = new HttpClient();
 
-        return selectAccounts;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> TaxGroups()
-    {
-        var taxGroups = GetAsync<IEnumerable<Dto.TaxSystem.TaxGroup>>("tax/taxgroups").Result;
-        var selectTaxGroups = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectTaxGroups.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var taxGroup in taxGroups)
-            selectTaxGroups.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = taxGroup.Id.ToString(), Text = taxGroup.Description });
-
-        return selectTaxGroups;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ItemTaxGroups()
-    {
-        var itemtaxgroups = GetAsync<IEnumerable<Dto.TaxSystem.ItemTaxGroup>>("tax/itemtaxgroups").Result;
-        var selectitemtaxgroups = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectitemtaxgroups.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var taxGroup in itemtaxgroups)
-            selectitemtaxgroups.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = taxGroup.Id.ToString(), Text = taxGroup.Name });
-
-        return selectitemtaxgroups;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> PaymentTerms()
-    {
-        var paymentTerms = GetAsync<IEnumerable<Dto.TaxSystem.TaxGroup>>("common/paymentterms").Result;
-        var selectPaymentTerms = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectPaymentTerms.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var term in paymentTerms)
-            selectPaymentTerms.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = term.Id.ToString(), Text = term.Description });
-
-        return selectPaymentTerms;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> UnitOfMeasurements()
-    {
-        var uoms = GetAsync<IEnumerable<Dto.TaxSystem.TaxGroup>>("common/measurements").Result;
-        var selectUOMS = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectUOMS.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in uoms)
-            selectUOMS.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Description });
-
-        return selectUOMS;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ItemCategories()
-    {
-        var categories = GetAsync<IEnumerable<Dto.Inventory.ItemCategory>>("common/itemcategories").Result;
-        var selectCategories = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectCategories.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in categories)
-            selectCategories.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Name });
-
-        return selectCategories;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> CashBanks()
-    {
-        var cashBanks = GetAsync<IEnumerable<Dto.Financial.Bank>>("common/cashbanks").Result;
-        var selectCashBanks = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectCashBanks.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in cashBanks)
-            selectCashBanks.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Name });
-
-        return selectCashBanks;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> Customers()
-    {
-        var customers = GetAsync<IEnumerable<Dto.Sales.Customer>>("sales/customers").Result;
-        var selectCustomers = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectCustomers.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in customers)
-            selectCustomers.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Name });
-
-        return selectCustomers;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> Vendors()
-    {
-        var vendors = GetAsync<IEnumerable<Dto.Purchasing.Vendor>>("purchasing/vendors").Result;
-        var selectVendors = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectVendors.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in vendors)
-            selectVendors.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Name });
-
-        return selectVendors;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> Items()
-    {
-        var items = GetAsync<IEnumerable<Dto.Inventory.Item>>("inventory/items").Result;
-        var selectItems = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectItems.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in items)
-            selectItems.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Description });
-
-        return selectItems;
-    }
-
-    public static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> Measurements()
-    {
-        var measurements = GetAsync<IEnumerable<Dto.Inventory.Measurement>>("common/measurements").Result;
-        var selectMeasurements = new HashSet<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-        selectMeasurements.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = "", Text = "" });
-        foreach (var item in measurements)
-            selectMeasurements.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem() { Value = item.Id.ToString(), Text = item.Description });
-
-        return selectMeasurements;
-    }
-
-    #region Private methods
-    public static async System.Threading.Tasks.Task<T> GetAsync<T>(string uri)
-    {
-        string responseJson = string.Empty;
-        using (var client = new HttpClient())
+        public static IEnumerable<SelectListItem> Accounts()
         {
-            var baseUri = _config!["ApiUrl"];
-            client.BaseAddress = new System.Uri(baseUri!);
-            client.DefaultRequestHeaders.Accept.Clear();
-            var response = await client.GetAsync(baseUri + uri);
-            if (response.IsSuccessStatusCode)
+            var accounts = Get<IEnumerable<Dto.Financial.Account>>("common/postingaccounts");
+            return ToSelectList(accounts, x => x.Id.ToString(), x => x.AccountName);
+        }
+
+        public static IEnumerable<SelectListItem> TaxGroups()
+        {
+            var taxGroups = Get<IEnumerable<Dto.TaxSystem.TaxGroup>>("tax/taxgroups");
+            return ToSelectList(taxGroups, x => x.Id.ToString(), x => x.Description);
+        }
+
+        public static IEnumerable<SelectListItem> ItemTaxGroups()
+        {
+            var itemTaxGroups = Get<IEnumerable<Dto.TaxSystem.ItemTaxGroup>>("tax/itemtaxgroups");
+            return ToSelectList(itemTaxGroups, x => x.Id.ToString(), x => x.Name);
+        }
+
+        public static IEnumerable<SelectListItem> PaymentTerms()
+        {
+            // FIXED: was incorrectly using Dto.TaxSystem.TaxGroup
+            var paymentTerms = Get<IEnumerable<Dto.Common.PaymentTerm>>("common/paymentterms");
+            return ToSelectList(paymentTerms, x => x.Id.ToString(), x => x.Description);
+        }
+
+        public static IEnumerable<SelectListItem> UnitOfMeasurements()
+        {
+            // FIXED: was incorrectly using Dto.TaxSystem.TaxGroup
+            var uoms = Get<IEnumerable<Dto.Inventory.Measurement>>("common/measurements");
+            return ToSelectList(uoms, x => x.Id.ToString(), x => x.Description);
+        }
+
+        public static IEnumerable<SelectListItem> ItemCategories()
+        {
+            var categories = Get<IEnumerable<Dto.Inventory.ItemCategory>>("common/itemcategories");
+            return ToSelectList(categories, x => x.Id.ToString(), x => x.Name);
+        }
+
+        public static IEnumerable<SelectListItem> CashBanks()
+        {
+            var cashBanks = Get<IEnumerable<Dto.Financial.Bank>>("common/cashbanks");
+            return ToSelectList(cashBanks, x => x.Id.ToString(), x => x.Name);
+        }
+
+        public static IEnumerable<SelectListItem> Customers()
+        {
+            var customers = Get<IEnumerable<Dto.Sales.Customer>>("sales/customers");
+            return ToSelectList(customers, x => x.Id.ToString(), x => x.Name);
+        }
+
+        public static IEnumerable<SelectListItem> Vendors()
+        {
+            var vendors = Get<IEnumerable<Dto.Purchasing.Vendor>>("purchasing/vendors");
+            return ToSelectList(vendors, x => x.Id.ToString(), x => x.Name);
+        }
+
+        public static IEnumerable<SelectListItem> Items()
+        {
+            var items = Get<IEnumerable<Dto.Inventory.Item>>("inventory/items");
+            return ToSelectList(items, x => x.Id.ToString(), x => x.Description);
+        }
+
+        public static IEnumerable<SelectListItem> Measurements()
+        {
+            var measurements = Get<IEnumerable<Dto.Inventory.Measurement>>("common/measurements");
+            return ToSelectList(measurements, x => x.Id.ToString(), x => x.Description);
+        }
+
+        #region Private Helpers
+
+        /// <summary>
+        /// Synchronous wrapper. Prefer the async version when possible.
+        /// </summary>
+        private static T? Get<T>(string uri)
+        {
+            try
             {
-                responseJson = await response.Content.ReadAsStringAsync();
+                return GetAsync<T>(uri).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                return default;
             }
         }
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(responseJson)!;
+
+        private static async Task<T?> GetAsync<T>(string uri)
+        {
+            if (_config == null)
+                return default;
+
+            var baseUri = _config["ApiUrl"];
+            if (string.IsNullOrWhiteSpace(baseUri))
+                return default;
+
+            try
+            {
+                // Ensure BaseAddress is set only once
+                if (_httpClient.BaseAddress == null)
+                    _httpClient.BaseAddress = new Uri(baseUri);
+
+                var response = await _httpClient.GetAsync(uri);
+
+                if (!response.IsSuccessStatusCode)
+                    return default;
+
+                var json = await response.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(json))
+                    return default;
+
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(json);
+            }
+            catch
+            {
+                return default;
+            }
+        }
+
+        private static IEnumerable<SelectListItem> ToSelectList<T>(
+            IEnumerable<T>? items,
+            Func<T, string> valueSelector,
+            Func<T, string> textSelector)
+        {
+            var list = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "", Text = "" } // empty option
+            };
+
+            if (items == null)
+                return list;
+
+            foreach (var item in items)
+            {
+                if (item == null) continue;
+
+                list.Add(new SelectListItem
+                {
+                    Value = valueSelector(item),
+                    Text = textSelector(item) ?? string.Empty
+                });
+            }
+
+            return list;
+        }
+
+        #endregion
     }
-    #endregion
 }

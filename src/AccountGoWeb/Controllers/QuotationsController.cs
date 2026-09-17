@@ -1,15 +1,17 @@
 ﻿using Dto.Sales;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace AccountGoWeb.Controllers
 {
-   
     public class QuotationsController : GoodController
     {
-        //private readonly IConfiguration _configuration;
         private readonly ILogger<QuotationsController> _logger;
 
         public QuotationsController(IConfiguration config, ILogger<QuotationsController> logger)
@@ -27,7 +29,6 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Quotations";
 
-           
             var responseJson = await GetAsync<string>("sales/quotations");
             if (responseJson == null)
             {
@@ -43,7 +44,7 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Add Sales Quotation";
 
-            SalesQuotation model = new SalesQuotation
+            var model = new SalesQuotation
             {
                 SalesQuotationLines = new List<SalesQuotationLine>
                 {
@@ -53,14 +54,13 @@ namespace AccountGoWeb.Controllers
                         Quantity = 1,
                         Discount = 0,
                         ItemId = 1,
-                        MeasurementId = 1,
+                        MeasurementId = 1
                     }
                 },
-                No = new Random().Next(1, 99999).ToString() 
+                No = new Random().Next(1, 99999).ToString()
             };
 
             PopulateQuotationFormViewBags();
-
             return View(model);
         }
 
@@ -68,6 +68,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddSalesQuotation(SalesQuotation model, string addRowBtn)
         {
+            if (model == null)
+            {
+                return BadRequest();
+            }
+
             if (!string.IsNullOrEmpty(addRowBtn))
             {
                 _logger.LogInformation("Add Row Button Clicked");
@@ -79,21 +84,19 @@ namespace AccountGoWeb.Controllers
                     Quantity = 1,
                     Discount = 0,
                     ItemId = 1,
-                    MeasurementId = 1,
+                    MeasurementId = 1
                 });
 
                 PopulateQuotationFormViewBags();
-
                 return View(model);
             }
 
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
-                var content = new StringContent(serialize);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                _logger.LogInformation("Quotation ID is: " + model.Id);
+                _logger.LogInformation("Quotation ID is: {QuotationId}", model.Id);
 
                 var response = await PostAsync("sales/savequotation", content);
                 if (response != null && response.IsSuccessStatusCode)
@@ -105,9 +108,7 @@ namespace AccountGoWeb.Controllers
                 ModelState.AddModelError(string.Empty, "Failed to save sales quotation.");
             }
 
-           
             PopulateQuotationFormViewBags();
-
             return View(model);
         }
 
@@ -118,7 +119,6 @@ namespace AccountGoWeb.Controllers
 
             if (id == 0)
             {
-              
                 return RedirectToAction(nameof(AddSalesQuotation));
             }
 
@@ -137,11 +137,9 @@ namespace AccountGoWeb.Controllers
             ViewBag.TotalAmount = model.Amount;
 
             PopulateQuotationFormViewBags();
-
             return View(model);
         }
 
-    
         private void PopulateQuotationFormViewBags()
         {
             ViewBag.Customers = Models.SelectListItemHelper.Customers();
