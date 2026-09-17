@@ -98,7 +98,7 @@ namespace Api.Controllers
 
         #region Mapping
 
-        private static Tax MapTax(dynamic tax)
+        private static Tax MapTax(Core.Domain.Tax tax)
         {
             return new Tax
             {
@@ -110,7 +110,7 @@ namespace Api.Controllers
             };
         }
 
-        private static TaxGroup MapTaxGroup(dynamic group)
+        private static TaxGroup MapTaxGroup(Core.Domain.TaxGroup group)
         {
             return new TaxGroup
             {
@@ -131,7 +131,7 @@ namespace Api.Controllers
             };
         }
 
-        private static ItemTaxGroup MapItemTaxGroup(dynamic group)
+        private static ItemTaxGroup MapItemTaxGroup(Core.Domain.ItemTaxGroup group)
         {
             return new ItemTaxGroup
             {
@@ -144,7 +144,8 @@ namespace Api.Controllers
                     {
                         Id = x.Id,
                         TaxId = x.TaxId,
-                        ItemTaxGroupId = x.ItemTaxGroupId
+                        ItemTaxGroupId = x.ItemTaxGroupId,
+                        IsExempt = x.IsExempt
                     })
                     .ToList()
                     ?? new List<ItemTaxGroupTax>()
