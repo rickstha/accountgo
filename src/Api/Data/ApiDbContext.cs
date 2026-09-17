@@ -17,221 +17,149 @@ namespace Api.Data
         public ApiDbContext(DbContextOptions<ApiDbContext> options)
             : base(options)
         {
-
-        }
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
+            // ===== Relationships (strongly-typed) =====
+
             builder.Entity<MainContraAccount>(entity =>
-                {
-                    entity.HasOne(e => e.MainAccount)
-                    .WithOne()
-                    .OnDelete(DeleteBehavior.NoAction);
-                }
-            );
+            {
+                entity.HasOne(e => e.MainAccount)
+                      .WithOne()
+                      .OnDelete(DeleteBehavior.NoAction);
+            });
 
             builder.Entity<CustomerAllocation>(b =>
             {
-                b.HasOne("Core.Domain.Sales.Customer", "Customer")
-                .WithMany("CustomerAllocations")
-                .HasForeignKey("CustomerId")
-                .OnDelete(DeleteBehavior.NoAction);
+                b.HasOne(ca => ca.Customer)
+                 .WithMany(c => c.CustomerAllocations)
+                 .HasForeignKey(ca => ca.CustomerId)
+                 .OnDelete(DeleteBehavior.NoAction);
 
-                b.HasOne("Core.Domain.Sales.SalesInvoiceHeader", "SalesInvoiceHeader")
-                .WithMany("CustomerAllocations")
-                .HasForeignKey("SalesInvoiceHeaderId")
-                .OnDelete(DeleteBehavior.NoAction);
+                b.HasOne(ca => ca.SalesInvoiceHeader)
+                 .WithMany(si => si.CustomerAllocations)
+                 .HasForeignKey(ca => ca.SalesInvoiceHeaderId)
+                 .OnDelete(DeleteBehavior.NoAction);
 
-                b.HasOne("Core.Domain.Sales.SalesReceiptHeader", "SalesReceiptHeader")
-                .WithMany("CustomerAllocations")
-                .HasForeignKey("SalesReceiptHeaderId")
-                .OnDelete(DeleteBehavior.NoAction);
-            }
-            );
+                b.HasOne(ca => ca.SalesReceiptHeader)
+                 .WithMany(sr => sr.CustomerAllocations)
+                 .HasForeignKey(ca => ca.SalesReceiptHeaderId)
+                 .OnDelete(DeleteBehavior.NoAction);
+            });
 
-            /* Medhat START */
+            // ===== Decimal precision for financial accuracy =====
+
             builder.Entity<GeneralLedgerLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
 
             builder.Entity<JournalEntryLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
 
             builder.Entity<InventoryControlJournal>()
-                .Property(p => p.INQty)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.INQty).HasColumnType("decimal(18, 2)");
             builder.Entity<InventoryControlJournal>()
-                .Property(p => p.OUTQty)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.OUTQty).HasColumnType("decimal(18, 2)");
             builder.Entity<InventoryControlJournal>()
-                .Property(p => p.TotalAmount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.TotalAmount).HasColumnType("decimal(18, 2)");
             builder.Entity<InventoryControlJournal>()
-                .Property(p => p.TotalCost)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.TotalCost).HasColumnType("decimal(18, 2)");
 
             builder.Entity<Item>()
-                .Property(p => p.Cost)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Cost).HasColumnType("decimal(18, 2)");
             builder.Entity<Item>()
-                .Property(p => p.Price)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Price).HasColumnType("decimal(18, 2)");
 
             builder.Entity<PurchaseInvoiceLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseInvoiceLine>()
-                .Property(p => p.Cost)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Cost).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseInvoiceLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseInvoiceLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseInvoiceLine>()
-                .Property(p => p.ReceivedQuantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.ReceivedQuantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<PurchaseOrderLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseOrderLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseOrderLine>()
-                .Property(p => p.Cost)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Cost).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseOrderLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
 
             builder.Entity<PurchaseReceiptLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseReceiptLine>()
-                .Property(p => p.Cost)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Cost).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseReceiptLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseReceiptLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
             builder.Entity<PurchaseReceiptLine>()
-                .Property(p => p.ReceivedQuantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.ReceivedQuantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<VendorPayment>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
 
             builder.Entity<CustomerAllocation>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesDeliveryLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesDeliveryLine>()
-                .Property(p => p.Price)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Price).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesDeliveryLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesInvoiceHeader>()
-                .Property(p => p.ShippingHandlingCharge)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.ShippingHandlingCharge).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesInvoiceLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesInvoiceLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesInvoiceLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesOrderLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesOrderLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesOrderLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesQuoteLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesQuoteLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesQuoteLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesReceiptHeader>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
 
             builder.Entity<SalesReceiptLine>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Amount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesReceiptLine>()
-                .Property(p => p.AmountPaid)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.AmountPaid).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesReceiptLine>()
-                .Property(p => p.Discount)
-                .HasColumnType("decimal(18, 2)");
-
+                .Property(p => p.Discount).HasColumnType("decimal(18, 2)");
             builder.Entity<SalesReceiptLine>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Quantity).HasColumnType("decimal(18, 2)");
 
             builder.Entity<Tax>()
-                .Property(p => p.Rate)
-                .HasColumnType("decimal(18, 2)");
+                .Property(p => p.Rate).HasColumnType("decimal(18, 2)");
 
+            // Seed data
             builder.Seed();
-            /* Medhat END */
         }
 
-        // for future use only. 
+        // ===== DbSets =====
         public virtual DbSet<Account> Accounts { get; set; }
         public virtual DbSet<AccountClass> AccountClasses { get; set; }
         public virtual DbSet<Address> Addresses { get; set; }
@@ -293,33 +221,44 @@ namespace Api.Data
         {
             SaveAuditLog();
 
-            var ret = base.SaveChanges();
+            var result = base.SaveChanges();
 
             UpdateAuditLogRecordId();
 
-            return ret;
+            return result;
         }
 
         #region Audit Logs
+
         private void SaveAuditLog()
         {
-            string username = string.Empty;
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added ||
+                            e.State == EntityState.Modified ||
+                            e.State == EntityState.Deleted)
+                .ToList();
 
-            var dbEntityEntries = ChangeTracker.Entries().ToList()
-                .Where(p => p.State == EntityState.Modified || p.State == EntityState.Added || p.State == EntityState.Deleted);
-
-            foreach (var dbEntityEntry in dbEntityEntries)
+            foreach (var entry in entries)
             {
                 try
                 {
-                    username = ((BaseEntity)dbEntityEntry.Entity).ModifiedBy;
-                    var auditLogs = AuditLogHelper.GetChangesForAuditLog(dbEntityEntry, username);
-                    foreach (var auditlog in auditLogs)
-                        if (auditlog != null)
-                            AuditLogs.Add(auditlog);
+                    // Safe type check – avoid InvalidCastException
+                    if (entry.Entity is not BaseEntity baseEntity)
+                        continue;
+
+                    string username = baseEntity.ModifiedBy ?? string.Empty;
+
+                    var auditLogs = AuditLogHelper.GetChangesForAuditLog(entry, username);
+
+                    foreach (var auditLog in auditLogs)
+                    {
+                        if (auditLog != null)
+                            AuditLogs.Add(auditLog);
+                    }
                 }
                 catch
                 {
+                    // Audit logging must never break the main business transaction
                     continue;
                 }
             }
@@ -327,27 +266,54 @@ namespace Api.Data
 
         private void UpdateAuditLogRecordId()
         {
+            if (AuditLogHelper.addedEntities == null || AuditLogHelper.addedEntities.Count == 0)
+                return;
+
+            bool needsSave = false;
+
             foreach (var entity in AuditLogHelper.addedEntities)
             {
-                if (ChangeTracker.Entries().ToList().Contains(entity.Value))
+                if (!ChangeTracker.Entries().Contains(entity.Value))
+                    continue;
+
+                try
                 {
-                    string keyName = entity.Value.Entity
-                        .GetType()
-                        .GetProperties()
-                        .Single(p => p.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.KeyAttribute), false).Count() > 0).Name;
+                    // Use EF Core metadata (works with both data annotations and Fluent API)
+                    var primaryKey = entity.Value.Metadata.FindPrimaryKey();
+                    if (primaryKey == null || primaryKey.Properties.Count == 0)
+                        continue;
 
-                    string recid = entity.Value.Property(keyName).CurrentValue.ToString();
+                    // Handle simple (single-column) primary keys
+                    var keyProperty = primaryKey.Properties[0];
+                    var keyValue = entity.Value.Property(keyProperty.Name).CurrentValue;
 
-                    var auditLog = this.AuditLogs.FirstOrDefault(log => log.AuditEventDateUTC == entity.Key);
+                    if (keyValue == null)
+                        continue;
+
+                    string recid = keyValue.ToString();
+
+                    var auditLog = AuditLogs
+                        .FirstOrDefault(log => log.AuditEventDateUTC == entity.Key);
 
                     if (auditLog != null)
                     {
                         auditLog.RecordId = recid;
-                        base.SaveChanges();
+                        needsSave = true;
                     }
                 }
+                catch
+                {
+                    continue;
+                }
+            }
+
+            // Important: call SaveChanges only once (fixes the major performance bug)
+            if (needsSave)
+            {
+                base.SaveChanges();
             }
         }
+
         #endregion
     }
 }
