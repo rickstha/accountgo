@@ -176,8 +176,8 @@ namespace Api.Controllers
                     Id = icj.Id,
                     In = icj.INQty,
                     Out = icj.OUTQty,
-                    Item = icj.Item?.Description ?? string.Empty,
-                    Measurement = icj.Measurement?.Code ?? string.Empty,
+                    Item = icj.Item != null ? icj.Item.Description : string.Empty,
+                    Measurement = icj.Measurement != null ? icj.Measurement.Code : string.Empty,
                     Date = icj.Date
                 }).ToList();
 
@@ -198,6 +198,11 @@ namespace Api.Controllers
 
         private static Item MapToDto(Core.Domain.Items.Item item)
         {
+            if (item == null)
+            {
+                return null;
+            }
+
             return new Item
             {
                 Id = item.Id,
@@ -218,11 +223,12 @@ namespace Api.Controllers
                 SalesAccountId = item.SalesAccountId,
                 InventoryAccountId = item.InventoryAccountId,
                 CostOfGoodsSoldAccountId = item.CostOfGoodsSoldAccountId,
-                InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId,
+                InventoryAdjustmentAccountId = item.InventoryAdjustmentAccountId
 
-                // Display helpers (populated when navigation properties are loaded)
-                ItemTaxGroupName = item.ItemTaxGroup?.Name ?? string.Empty,
-                Measurement = item.PurchaseMeasurement?.Description ?? string.Empty
+                // NOTE:
+                // Display-only helpers (ItemTaxGroupName, Measurement, etc.)
+                // were removed because they do not exist on the current Dto.Inventory.Item.
+                // Add them back only after the DTO is updated.
             };
         }
     }

@@ -1079,22 +1079,22 @@ namespace Api.Controllers
 
         [HttpPost]
         [Route("SaveReceipt")]
-        public IActionResult SaveReceipt([FromBody] dynamic receiptDto)
+        public IActionResult SaveReceipt([FromBody] SaveReceiptRequest receiptDto)
         {
-            // NOTE: Prefer a strongly-typed DTO instead of dynamic for production.
             try
             {
                 if (receiptDto == null)
                     return BadRequest(new[] { "Receipt data is required." });
 
-                int? accountToDebitId = (int?)receiptDto.AccountToDebitId;
-                int? accountToCreditId = (int?)receiptDto.AccountToCreditId;
-                int? customerId = (int?)receiptDto.CustomerId;
-                decimal? amount = (decimal?)receiptDto.Amount;
-                DateTime? receiptDate = (DateTime?)receiptDto.ReceiptDate;
+                int? accountToDebitId = receiptDto.AccountToDebitId;
+                int? accountToCreditId = receiptDto.AccountToCreditId;
+                int? customerId = receiptDto.CustomerId;
+                decimal? amount = receiptDto.Amount;
+                DateTime? receiptDate = receiptDto.ReceiptDate;
 
                 if (!accountToDebitId.HasValue || !accountToCreditId.HasValue ||
-                    !customerId.HasValue || !amount.HasValue || !receiptDate.HasValue)
+                    !customerId.HasValue || !amount.HasValue || amount.Value <= 0 ||
+                    !receiptDate.HasValue)
                 {
                     return BadRequest(new[] { "Receipt payload is incomplete." });
                 }
@@ -1141,23 +1141,22 @@ namespace Api.Controllers
 
         [HttpPost]
         [Route("SaveAllocation")]
-        public IActionResult SaveAllocation([FromBody] dynamic allocationDto)
+        public IActionResult SaveAllocation([FromBody] SaveAllocationRequest allocationDto)
         {
-            // NOTE: Prefer a strongly-typed DTO instead of dynamic for production.
             try
             {
                 if (allocationDto == null)
                     return BadRequest(new[] { "Allocation data is required." });
 
-                int? customerId = (int?)allocationDto.CustomerId;
-                int? receiptId = (int?)allocationDto.ReceiptId;
-                DateTime? date = (DateTime?)allocationDto.Date;
+                int? customerId = allocationDto.CustomerId;
+                int? receiptId = allocationDto.ReceiptId;
+                DateTime? date = allocationDto.Date;
 
                 if (!customerId.HasValue || !receiptId.HasValue || !date.HasValue)
                     return BadRequest(new[] { "Allocation payload is incomplete." });
 
                 var allocationLines = allocationDto.AllocationLines;
-                if (allocationLines == null)
+                if (allocationLines == null || allocationLines.Count == 0)
                     return BadRequest(new[] { "Allocation lines are required." });
 
                 var receipt = _salesService.GetSalesReceiptById(receiptId.Value);
@@ -1168,17 +1167,28 @@ namespace Api.Controllers
 
                 foreach (var line in allocationLines)
                 {
-                    decimal? amount = (decimal?)line.AmountToAllocate;
-                    int? invoiceId = (int?)line.InvoiceId;
+                    decimal? amount = line.AmountToAllocate;
+                    int? invoiceId = line.InvoiceId;
 
                     if (!amount.HasValue || amount.Value <= 0 || !invoiceId.HasValue)
                         return BadRequest(new[] { "Each allocation line must contain a positive amount and invoice." });
+                }
 
-                    var invoice = _salesService.GetSalesInvoiceById(invoiceId.Value);
-                    if (invoice == null || invoice.CustomerId != customerId.Value)
+                foreach (var invoiceLines in allocationLines.GroupBy(line => line.InvoiceId!.Value))
+                {
+                    var invoice = _salesService.GetSalesInvoiceById(invoiceLines.Key);
+                    if (invoice == null || invoice.CustomerId != customerId.Value ||
+                        !invoice.GeneralLedgerHeaderId.HasValue)
                         return BadRequest(new[] { "Invalid invoice for this customer." });
 
-                    totalToAllocate += amount.Value;
+                    var invoiceAmount = invoice.SalesInvoiceLines?.Sum(invoiceLine =>
+                        (invoiceLine.Amount ?? 0) * (invoiceLine.Quantity ?? 0)) ?? 0;
+                    var allocatedAmount = invoice.CustomerAllocations?.Sum(allocation => allocation.Amount) ?? 0;
+                    var requestedAmount = invoiceLines.Sum(line => line.AmountToAllocate!.Value);
+                    if (requestedAmount > invoiceAmount - allocatedAmount)
+                        return BadRequest(new[] { "Allocation amount exceeds the invoice balance." });
+
+                    totalToAllocate += requestedAmount;
                 }
 
                 if (totalToAllocate > receipt.AvailableAmountToAllocate)
@@ -1186,8 +1196,8 @@ namespace Api.Controllers
 
                 foreach (var line in allocationLines)
                 {
-                    decimal amount = (decimal)line.AmountToAllocate;
-                    int invoiceId = (int)line.InvoiceId;
+                    decimal amount = line.AmountToAllocate!.Value;
+                    int invoiceId = line.InvoiceId!.Value;
 
                     var allocation = new CustomerAllocation
                     {
@@ -1228,6 +1238,9 @@ namespace Api.Controllers
 
                 foreach (var item in salesInvoices)
                 {
+                    if (item.Date.Year != DateTime.Now.Year)
+                        continue;
+
                     int month = item.Date.Month;
                     decimal lineTotal = 0;
 
@@ -1237,6 +1250,7 @@ namespace Api.Controllers
                         var discount = gross * ((line.Discount ?? 0) / 100m);
                         lineTotal += gross - discount;
                     }
+                    
 
                     if (monthlyTotals.ContainsKey(month))
                         monthlyTotals[month] += lineTotal;
@@ -1345,6 +1359,29 @@ namespace Api.Controllers
                 _logger.LogError(ex, "SalesInvoiceForPrinting failed for id {Id}.", id);
                 return BadRequest(new[] { ex.InnerException?.Message ?? ex.Message });
             }
+        }
+
+        private sealed class SaveReceiptRequest
+        {
+            public int? AccountToDebitId { get; set; }
+            public int? AccountToCreditId { get; set; }
+            public int? CustomerId { get; set; }
+            public decimal? Amount { get; set; }
+            public DateTime? ReceiptDate { get; set; }
+        }
+
+        private sealed class SaveAllocationRequest
+        {
+            public int? CustomerId { get; set; }
+            public int? ReceiptId { get; set; }
+            public DateTime? Date { get; set; }
+            public List<SaveAllocationLineRequest> AllocationLines { get; set; } = new();
+        }
+
+        private sealed class SaveAllocationLineRequest
+        {
+            public int? InvoiceId { get; set; }
+            public decimal? AmountToAllocate { get; set; }
         }
     }
 }

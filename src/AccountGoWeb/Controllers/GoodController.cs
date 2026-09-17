@@ -19,9 +19,8 @@ namespace AccountGoWeb.Controllers
             }
         }
 
-        protected HttpResponseMessage Post(string uri, StringContent data)
+        protected async System.Threading.Tasks.Task<HttpResponseMessage> Post(string uri, StringContent data)
         {
-            string responseJson = string.Empty;
             using (var client = new HttpClient())
             {
                 string? baseUri = _configuration!["ApiUrl"];
@@ -30,8 +29,7 @@ namespace AccountGoWeb.Controllers
                 client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
                 //client.DefaultRequestHeaders.Add("UserName", GetCurrentUserName());
 
-                var response = client.PostAsync(baseUri + uri, data);
-                return response.Result;
+                return await client.PostAsync(baseUri + uri, data);
             }
         }
 
