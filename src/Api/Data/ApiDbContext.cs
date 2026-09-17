@@ -266,12 +266,12 @@ namespace Api.Data
 
         private void UpdateAuditLogRecordId()
         {
-            if (AuditLogHelper.addedEntities == null || AuditLogHelper.addedEntities.Count == 0)
+            if (AuditLogHelper.AddedEntities.Count == 0)
                 return;
 
             bool needsSave = false;
 
-            foreach (var entity in AuditLogHelper.addedEntities)
+            foreach (var entity in AuditLogHelper.AddedEntities)
             {
                 if (!ChangeTracker.Entries().Contains(entity.Value))
                     continue;
@@ -312,6 +312,8 @@ namespace Api.Data
             {
                 base.SaveChanges();
             }
+
+            AuditLogHelper.AddedEntities.Clear();
         }
 
         #endregion

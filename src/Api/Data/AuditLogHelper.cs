@@ -11,8 +11,7 @@ namespace Api.Data
 {
     public static class AuditLogHelper
     {
-        public static readonly ConcurrentQueue<(DateTime Time, string EntityName, string RecordId)> AddedEntities
-            = new();
+        public static readonly ConcurrentDictionary<DateTime, EntityEntry> AddedEntities = new();
 
         public static List<AuditLog> GetChangesForAuditLog(EntityEntry dbEntry, string username)
         {
@@ -81,7 +80,7 @@ namespace Api.Data
                                 null,
                                 ObjectFieldsValues(dbEntry)));
 
-                            AddedEntities.Enqueue((changeTime, tableName, recordId));
+                            AddedEntities.TryAdd(changeTime, dbEntry);
                         }
 
                         break;
