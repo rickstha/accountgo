@@ -23,65 +23,37 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Items";
 
-            try
+            var items = await GetAsync<object>("inventory/items");
+            if (items == null)
             {
-                using var client = new HttpClient();
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-
-                var response = await client.GetAsync(baseUri + "inventory/items");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
-
-                _logger.LogWarning("Failed to retrieve items. Status: {StatusCode}", response.StatusCode);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading items");
+                _logger.LogWarning("Failed to retrieve items.");
+                return View();
             }
 
-            return View();
+            return View(model: items.ToString());
         }
 
         public async Task<IActionResult> ICJ()
         {
             ViewBag.PageContentHeader = "Inventory Control Journal";
 
-            try
+            var journal = await GetAsync<object>("inventory/icj");
+            if (journal == null)
             {
-                using var client = new HttpClient();
-                var baseUri = _baseConfig!["ApiUrl"];
-                client.BaseAddress = new Uri(baseUri!);
-                client.DefaultRequestHeaders.Accept.Clear();
-
-                var response = await client.GetAsync(baseUri + "inventory/icj");
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    return View(model: responseJson);
-                }
-
-                _logger.LogWarning("Failed to retrieve ICJ. Status: {StatusCode}", response.StatusCode);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading Inventory Control Journal");
+                _logger.LogWarning("Failed to retrieve inventory control journal.");
+                return View();
             }
 
-            return View();
+            return View(model: journal.ToString());
         }
 
-        public async Task<IActionResult> Item(int id)
+        public async Task<IActionResult> Item(int id = 0)
         {
             _logger.LogInformation("GetItem: {Id}", id);
 
             Item? itemModel;
 
-            if (id == -1)
+            if (id <= 0)
             {
                 ViewBag.PageContentHeader = "New Item";
                 itemModel = new Item
