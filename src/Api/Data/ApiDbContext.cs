@@ -6,7 +6,6 @@ using Core.Domain.Items;
 using Core.Domain.Purchases;
 using Core.Domain.Sales;
 using Core.Domain.Security;
-using Core.Domain.TaxSystem;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 
