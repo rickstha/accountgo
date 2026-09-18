@@ -1,5 +1,6 @@
 ﻿using Dto.Purchasing;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -43,21 +44,7 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Add Purchase Order";
 
-            var purchaseOrderModel = new PurchaseOrder
-            {
-                PurchaseOrderLines = new List<PurchaseOrderLine>
-                {
-                    new PurchaseOrderLine
-                    {
-                        Amount = 0,
-                        Discount = 0,
-                        ItemId = 1,
-                        Quantity = 1
-                    }
-                },
-                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
-            };
-
+            var purchaseOrderModel = CreatePurchaseOrderModel();
             PopulatePurchaseOrderFormViewBags();
             return View(purchaseOrderModel);
         }
@@ -96,7 +83,7 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = await PostAsync("purchasing/savepurchaseorder", content);
-                if (response == null || !response.IsSuccessStatusCode)
+                if (string.IsNullOrEmpty(response))
                 {
                     _logger.LogWarning("Failed to save purchase order.");
                     ModelState.AddModelError(string.Empty, "Failed to save purchase order.");
@@ -119,7 +106,9 @@ namespace AccountGoWeb.Controllers
             if (id == 0)
             {
                 ViewBag.PageContentHeader = "New Purchase Invoice";
-                return View("PurchaseInvoice");
+                var newPurchaseInvoice = CreatePurchaseInvoiceModel();
+                PopulatePurchaseOrderFormViewBags();
+                return View("PurchaseInvoice", newPurchaseInvoice);
             }
 
             var purchaseInvoiceModel = await GetAsync<PurchaseInvoice>("purchasing/purchaseinvoice?id=" + id);
@@ -140,7 +129,9 @@ namespace AccountGoWeb.Controllers
             if (id == 0)
             {
                 ViewBag.PageContentHeader = "New Purchase Order";
-                return View();
+                var newPurchaseOrder = CreatePurchaseOrderModel();
+                PopulatePurchaseOrderFormViewBags();
+                return View(newPurchaseOrder);
             }
 
             var purchaseOrderModel = await GetAsync<PurchaseOrder>("purchasing/purchaseorder?id=" + id);
@@ -172,21 +163,7 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "New Invoice";
 
-            var purchaseInvoiceModel = new PurchaseInvoice
-            {
-                PurchaseInvoiceLines = new List<PurchaseInvoiceLine>
-                {
-                    new PurchaseInvoiceLine
-                    {
-                        Amount = 0,
-                        Discount = 0,
-                        ItemId = 1,
-                        Quantity = 1
-                    }
-                },
-                No = new Random().Next(1, 99999).ToString() // TODO: Replace with system-generated numbering
-            };
-
+            var purchaseInvoiceModel = CreatePurchaseInvoiceModel();
             PopulatePurchaseOrderFormViewBags();
             return View(purchaseInvoiceModel);
         }
@@ -225,7 +202,7 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = await PostAsync("purchasing/savepurchaseinvoice", content);
-                if (response == null || !response.IsSuccessStatusCode)
+                if (string.IsNullOrEmpty(response))
                 {
                     _logger.LogWarning("Failed to save purchase invoice.");
                     ModelState.AddModelError(string.Empty, "Failed to save purchase invoice.");
@@ -305,7 +282,7 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = await PostAsync("purchasing/savevendor", content);
-                if (response != null && response.IsSuccessStatusCode)
+                if (!string.IsNullOrEmpty(response))
                 {
                     return RedirectToAction(nameof(Vendors));
                 }
@@ -362,7 +339,7 @@ namespace AccountGoWeb.Controllers
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
                 var response = await PostAsync("purchasing/savepayment", content);
-                if (response != null && response.IsSuccessStatusCode)
+                if (!string.IsNullOrEmpty(response))
                 {
                     return RedirectToAction(nameof(PurchaseInvoices));
                 }
@@ -377,6 +354,42 @@ namespace AccountGoWeb.Controllers
         }
 
         #region Private Helpers
+
+        private static PurchaseOrder CreatePurchaseOrderModel()
+        {
+            return new PurchaseOrder
+            {
+                PurchaseOrderLines = new List<PurchaseOrderLine>
+                {
+                    new PurchaseOrderLine
+                    {
+                        Amount = 0,
+                        Discount = 0,
+                        ItemId = 1,
+                        Quantity = 1
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString()
+            };
+        }
+
+        private static PurchaseInvoice CreatePurchaseInvoiceModel()
+        {
+            return new PurchaseInvoice
+            {
+                PurchaseInvoiceLines = new List<PurchaseInvoiceLine>
+                {
+                    new PurchaseInvoiceLine
+                    {
+                        Amount = 0,
+                        Discount = 0,
+                        ItemId = 1,
+                        Quantity = 1
+                    }
+                },
+                No = new Random().Next(1, 99999).ToString()
+            };
+        }
 
         private void PopulatePurchaseOrderFormViewBags()
         {
