@@ -14,21 +14,19 @@ namespace Api.Data.Repositories
         public SecurityRepository(ApiDbContext context)
         {
             _context = context;
-            if (!_context.Users.Any())
-            {
-                var adminRole=new SecurityRole.Builder("Admin").Build();
-                var useRole=new SecurityRepository.Builder("User").Billd();
-                _context.Roles.AddRange(adminRole,useRole);
-                context.SaveChange();
-                
-            }
-
-            throw new NotImplementedException();
         }
 
         public void AddRole(SecurityRole role)
         {
-            throw new NotImplementedException();
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            if (role.Id == 0)
+                _context.SecurityRoles.Add(role);
+            else
+                _context.SecurityRoles.Update(role);
+
+            _context.SaveChanges();
         }
 
         public void AddUser(User user)
@@ -44,7 +42,18 @@ namespace Api.Data.Repositories
     
         public SecurityRole GetRole(string roleName)
         {
-            throw new NotImplementedException();
+            return _context.SecurityRoles
+                .Include(role => role.Permissions)
+                .ThenInclude(permission => permission.SecurityPermission)
+                .FirstOrDefault(role => role.Name == roleName);
+        }
+
+        public IEnumerable<SecurityRole> GetAllRoles()
+        {
+            return _context.SecurityRoles
+                .Include(role => role.Permissions)
+                .ThenInclude(permission => permission.SecurityPermission)
+                .ToList();
         }
 
         public User GetUser(string username)
@@ -53,8 +62,6 @@ namespace Api.Data.Repositories
                 .Include(u => u.Roles)
                 .ThenInclude(u => u.SecurityRole.Permissions)
                 .ThenInclude(u => u.SecurityPermission.Group)
-                // no use till now
-                .ThenInclude(u=> u.SecurityMainRole.Role)
                 .Where(u => u.UserName == username)
                 .FirstOrDefault();
                 // extra code for future use only for error handling
@@ -75,8 +82,7 @@ namespace Api.Data.Repositories
             var users = _context.Users
                 .Include(u => u.Roles)
                 .ThenInclude(u => u.SecurityRole.Permissions)
-                .ThenInclude(u => u.SecurityPermission.Group)
-                .ThenInclude(u => u.SecurityMainRole.Role);
+                .ThenInclude(u => u.SecurityPermission.Group);
                 // for additional use only | if we uncoment this we get the error in line 67 return users.ToList();
                 // .ThenInclude(u=> u.SecurityGroup.SecurityGroup)
                 // .ThenInclude(u=> u.SecurityMainRole.SecurityMainRole)

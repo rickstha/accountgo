@@ -8,6 +8,7 @@ using Services.TaxSystem;
 using Core.Domain;
 using Core.Domain.Sales;
 using Dto.Sales;
+using CustomerDto = Dto.Sales.Customer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,7 +50,7 @@ namespace Api.Controllers
 
         [HttpPost]
         [Route("SaveCustomer")]
-        public IActionResult SaveCustomer([FromBody] Customer customerDto)
+        public IActionResult SaveCustomer([FromBody] CustomerDto customerDto)
         {
             if (customerDto == null)
                 return BadRequest(new[] { "Customer data is required." });
@@ -1361,7 +1362,7 @@ namespace Api.Controllers
             }
         }
 
-        private sealed class SaveReceiptRequest
+        public sealed class SaveReceiptRequest
         {
             public int? AccountToDebitId { get; set; }
             public int? AccountToCreditId { get; set; }
@@ -1370,7 +1371,7 @@ namespace Api.Controllers
             public DateTime? ReceiptDate { get; set; }
         }
 
-        private sealed class SaveAllocationRequest
+        public sealed class SaveAllocationRequest
         {
             public int? CustomerId { get; set; }
             public int? ReceiptId { get; set; }
@@ -1378,7 +1379,7 @@ namespace Api.Controllers
             public List<SaveAllocationLineRequest> AllocationLines { get; set; } = new();
         }
 
-        private sealed class SaveAllocationLineRequest
+        public sealed class SaveAllocationLineRequest
         {
             public int? InvoiceId { get; set; }
             public decimal? AmountToAllocate { get; set; }

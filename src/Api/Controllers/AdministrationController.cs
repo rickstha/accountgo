@@ -130,8 +130,7 @@ namespace Api.Controllers
                     Id = company.Id,
                     CompanyCode = company.CompanyCode,
                     Name = company.Name,
-                    ShortName = company.ShortName,
-                    Logo = company.Logo
+                    ShortName = company.ShortName
                 };
 
                 return Ok(companyDto);
@@ -399,7 +398,6 @@ namespace Api.Controllers
                 company.CompanyCode = companyDto.CompanyCode;
                 company.Name = companyDto.Name;
                 company.ShortName = companyDto.ShortName;
-                company.Logo = companyDto.Logo;
 
                 _adminService.SaveCompany(company);
 

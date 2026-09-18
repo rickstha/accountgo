@@ -103,7 +103,7 @@ namespace Api.Data
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Setup() - An error occured during initialization of database. Clear() method will be called to rollback any changes. Error Message = " + ex.Message);
+                Console.WriteLine("Setup() - An error occurred during database initialization. The database was not rolled back. Error message = " + ex.Message);
                 return false;
             }
         }
@@ -505,29 +505,29 @@ namespace Api.Data
 
         private void SetupLedgerSetting(Core.Domain.Company company)
         {
-            Core.Domain.Financials.GeneralLedgerSetting glSetting = null;
-            if (_financialService.GetGeneralLedgerSetting() == null)
+            if (_financialService.GetGeneralLedgerSetting() != null)
+                return;
+
+            var glSetting = new Core.Domain.Financials.GeneralLedgerSetting
             {
-                glSetting = new Core.Domain.Financials.GeneralLedgerSetting
-                {
-                    Company = company,
-                    GoodsReceiptNoteClearingAccount = _financialService.GetAccountByAccountCode("10810"),
-                    ShippingChargeAccount = _financialService.GetAccountByAccountCode("40500"),
-                    SalesDiscountAccount = _financialService.GetAccountByAccountCode("40400"),
-                };
-            }
+                Company = company,
+                GoodsReceiptNoteClearingAccount = GetRequiredAccount("10810"),
+                ShippingChargeAccount = GetRequiredAccount("40500"),
+                SalesDiscountAccount = GetRequiredAccount("40400"),
+            };
+
             _financialService.SaveGeneralLedgerSetting(glSetting);
         }
 
         private void SetupTax()
         {
-            IList<Core.Domain.TaxSystem.Tax> taxes = new List<Core.Domain.TaxSystem.Tax>();
+            IList<Core.Domain.Tax> taxes = new List<Core.Domain.Tax>();
             if (_financialService.GetTaxes().Any()) return;
 
-            var salesTaxAccount = _financialService.GetAccountByAccountCode("20300");
-            var purchaseTaxAccount = _financialService.GetAccountByAccountCode("50700");
+            var salesTaxAccount = GetRequiredAccount("20300");
+            var purchaseTaxAccount = GetRequiredAccount("50700");
 
-            var vat5 = new Core.Domain.TaxSystem.Tax()
+            var vat5 = new Core.Domain.Tax()
             {
                 TaxCode = "VAT5%",
                 TaxName = "VAT 5%",
@@ -537,7 +537,7 @@ namespace Api.Data
                 PurchasingAccountId = purchaseTaxAccount.Id,
             };
 
-            var vat10 = new Core.Domain.TaxSystem.Tax()
+            var vat10 = new Core.Domain.Tax()
             {
                 TaxCode = "VAT10%",
                 TaxName = "VAT 10%",
@@ -547,7 +547,7 @@ namespace Api.Data
                 PurchasingAccountId = purchaseTaxAccount.Id,
             };
 
-            var evat12 = new Core.Domain.TaxSystem.Tax()
+            var evat12 = new Core.Domain.Tax()
             {
                 TaxCode = "VAT12%",
                 TaxName = "VAT 12%",
@@ -557,7 +557,7 @@ namespace Api.Data
                 PurchasingAccountId = purchaseTaxAccount.Id,
             };
 
-            var exportTax1 = new Core.Domain.TaxSystem.Tax()
+            var exportTax1 = new Core.Domain.Tax()
             {
                 TaxCode = "exportTax1%",
                 TaxName = "Export Tax 1%",
@@ -567,62 +567,62 @@ namespace Api.Data
                 PurchasingAccountId = purchaseTaxAccount.Id,
             };
 
-            var taxGroupVat = new Core.Domain.TaxSystem.TaxGroup()
+            var taxGroupVat = new Core.Domain.TaxGroup()
             {
                 Description = "VAT",
                 TaxAppliedToShipping = false,
                 IsActive = true,
             };
 
-            var taxGroupExport = new Core.Domain.TaxSystem.TaxGroup()
+            var taxGroupExport = new Core.Domain.TaxGroup()
             {
                 Description = "Export",
                 TaxAppliedToShipping = false,
                 IsActive = true,
             };
 
-            IList<Core.Domain.TaxSystem.TaxGroup> taxGroups = new List<Core.Domain.TaxSystem.TaxGroup>();
+            IList<Core.Domain.TaxGroup> taxGroups = new List<Core.Domain.TaxGroup>();
             taxGroups.Add(taxGroupVat);
             taxGroups.Add(taxGroupExport);
 
-            var itemTaxGroupRegular = new Core.Domain.TaxSystem.ItemTaxGroup()
+            var itemTaxGroupRegular = new Core.Domain.ItemTaxGroup()
             {
                 Name = "Regular",
                 IsFullyExempt = false,
             };
 
-            var itemTaxGroupRegularPreferenced = new Core.Domain.TaxSystem.ItemTaxGroup()
+            var itemTaxGroupRegularPreferenced = new Core.Domain.ItemTaxGroup()
             {
                 Name = "Preferenced",
                 IsFullyExempt = false,
             };
 
-            IList<Core.Domain.TaxSystem.ItemTaxGroup> itemtaxGroups = new List<Core.Domain.TaxSystem.ItemTaxGroup>();
+            IList<Core.Domain.ItemTaxGroup> itemtaxGroups = new List<Core.Domain.ItemTaxGroup>();
             itemtaxGroups.Add(itemTaxGroupRegular);
             itemtaxGroups.Add(itemTaxGroupRegularPreferenced);
 
-            vat5.TaxGroupTaxes.Add(new Core.Domain.TaxSystem.TaxGroupTax()
+            vat5.TaxGroupTaxes.Add(new Core.Domain.TaxGroupTax()
             {
                 TaxGroup = taxGroupVat,
             });
 
-            evat12.TaxGroupTaxes.Add(new Core.Domain.TaxSystem.TaxGroupTax()
+            evat12.TaxGroupTaxes.Add(new Core.Domain.TaxGroupTax()
             {
                 TaxGroup = taxGroupVat,
             });
 
-            exportTax1.TaxGroupTaxes.Add(new Core.Domain.TaxSystem.TaxGroupTax()
+            exportTax1.TaxGroupTaxes.Add(new Core.Domain.TaxGroupTax()
             {
                 TaxGroup = taxGroupExport,
             });
 
-            vat5.ItemTaxGroupTaxes.Add(new Core.Domain.TaxSystem.ItemTaxGroupTax()
+            vat5.ItemTaxGroupTaxes.Add(new Core.Domain.ItemTaxGroupTax()
             {
                 ItemTaxGroup = itemTaxGroupRegularPreferenced,
                 IsExempt = false,
             });
 
-            evat12.ItemTaxGroupTaxes.Add(new Core.Domain.TaxSystem.ItemTaxGroupTax()
+            evat12.ItemTaxGroupTaxes.Add(new Core.Domain.ItemTaxGroupTax()
             {
                 ItemTaxGroup = itemTaxGroupRegular,
                 IsExempt = false,
@@ -650,9 +650,9 @@ namespace Api.Data
                 IsActive = true
             };
 
-            vendor.AccountsPayableAccountId = _financialService.GetAccountByAccountCode("20110").Id;
-            vendor.PurchaseAccountId = _financialService.GetAccountByAccountCode("50200").Id;
-            vendor.PurchaseDiscountAccountId = _financialService.GetAccountByAccountCode("50400").Id;
+            vendor.AccountsPayableAccountId = GetRequiredAccount("20110").Id;
+            vendor.PurchaseAccountId = GetRequiredAccount("50200").Id;
+            vendor.PurchaseDiscountAccountId = GetRequiredAccount("50400").Id;
             vendor.Party = vendorParty;
 
             Core.Domain.Contact primaryContact = new Core.Domain.Contact
@@ -688,7 +688,12 @@ namespace Api.Data
             customer.SalesAccountId = accountSales != null ? (int?)accountSales.Id : null;
             customer.CustomerAdvancesAccountId = accountAdvances != null ? (int?)accountAdvances.Id : null;
             customer.SalesDiscountAccountId = accountSalesDiscount != null ? (int?)accountSalesDiscount.Id : null;
-            customer.TaxGroupId = _financialService.GetTaxGroups().FirstOrDefault(tg => tg.Description == "VAT").Id;
+            var vatTaxGroup = _financialService.GetTaxGroups()
+                .FirstOrDefault(tg => tg.Description == "VAT");
+            if (vatTaxGroup == null)
+                throw new InvalidOperationException("The VAT tax group is required before creating the sample customer.");
+
+            customer.TaxGroupId = vatTaxGroup.Id;
             customer.Party = customerParty;
 
             Core.Domain.Contact primaryContact = new Core.Domain.Contact
@@ -862,11 +867,16 @@ namespace Api.Data
 
         private void SetupBanks() // Dependency: chart of account
         {
+            if (_financialService.GetCashAndBanks().Any()) return;
+
             IList<Core.Domain.Financials.Bank> banks = new List<Core.Domain.Financials.Bank>();
+
+            var generalFundAccount = GetRequiredAccount("10111");
+            var pettyCashAccount = GetRequiredAccount("10113");
 
             var bank1 = new Core.Domain.Financials.Bank
             {
-                AccountId = _financialService.GetAccountByAccountCode("10111").Id,
+                AccountId = generalFundAccount.Id,
                 Name = "General Fund",
                 Type = Core.Domain.BankTypes.CheckingAccount,
                 BankName = "GFB",
@@ -877,7 +887,7 @@ namespace Api.Data
             };
             var bank2 = new Core.Domain.Financials.Bank
             {
-                AccountId = _financialService.GetAccountByAccountCode("10113").Id,
+                AccountId = pettyCashAccount.Id,
                 Name = "Petty Cash Account",
                 Type = Core.Domain.BankTypes.CashAccount,
                 IsDefault = false,
@@ -889,6 +899,15 @@ namespace Api.Data
 
             foreach (var b in banks)
                 _financialService.SaveBank(b);
+        }
+
+        private Core.Domain.Financials.Account GetRequiredAccount(string accountCode)
+        {
+            var account = _financialService.GetAccountByAccountCode(accountCode);
+            if (account == null)
+                throw new InvalidOperationException($"Required account '{accountCode}' was not found.");
+
+            return account;
         }
 
         private void SetupSecurityRoles()

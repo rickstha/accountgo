@@ -4,6 +4,11 @@ using Services.TaxSystem;
 using System.Collections.Generic;
 using System.Linq;
 using Core.Domain;
+using TaxDto = Dto.TaxSystem.Tax;
+using TaxGroupDto = Dto.TaxSystem.TaxGroup;
+using ItemTaxGroupDto = Dto.TaxSystem.ItemTaxGroup;
+using TaxGroupTaxDto = Dto.TaxSystem.TaxGroupTax;
+using ItemTaxGroupTaxDto = Dto.TaxSystem.ItemTaxGroupTax;
 
 namespace Api.Controllers
 {
@@ -37,7 +42,7 @@ namespace Api.Controllers
                 partyId,
                 (PartyTypes)type);
 
-            return Ok(taxes?.Select(MapTax) ?? Enumerable.Empty<Tax>());
+            return Ok(taxes?.Select(MapTax) ?? Enumerable.Empty<TaxDto>());
         }
 
         [HttpGet("Taxes")]
@@ -48,17 +53,17 @@ namespace Api.Controllers
                 Taxes = _taxService.GetTaxes(true)?
                     .Select(MapTax)
                     .ToList()
-                    ?? new List<Tax>(),
+                    ?? new List<TaxDto>(),
 
                 TaxGroups = _taxService.GetTaxGroups()?
                     .Select(MapTaxGroup)
                     .ToList()
-                    ?? new List<TaxGroup>(),
+                    ?? new List<TaxGroupDto>(),
 
                 ItemTaxGroups = _taxService.GetItemTaxGroups()?
                     .Select(MapItemTaxGroup)
                     .ToList()
-                    ?? new List<ItemTaxGroup>()
+                    ?? new List<ItemTaxGroupDto>()
             };
 
             return Ok(dto);
@@ -74,7 +79,7 @@ namespace Api.Controllers
             var groups = _taxService.GetTaxGroups()?
                 .Select(MapTaxGroup)
                 .ToList()
-                ?? new List<TaxGroup>();
+                ?? new List<TaxGroupDto>();
 
             return Ok(groups);
         }
@@ -89,7 +94,7 @@ namespace Api.Controllers
             var groups = _taxService.GetItemTaxGroups()?
                 .Select(MapItemTaxGroup)
                 .ToList()
-                ?? new List<ItemTaxGroup>();
+                ?? new List<ItemTaxGroupDto>();
 
             return Ok(groups);
         }
@@ -98,9 +103,9 @@ namespace Api.Controllers
 
         #region Mapping
 
-        private static Tax MapTax(Core.Domain.Tax tax)
+        private static TaxDto MapTax(Core.Domain.Tax tax)
         {
-            return new Tax
+            return new TaxDto
             {
                 Id = tax.Id,
                 TaxCode = tax.TaxCode,
@@ -110,9 +115,9 @@ namespace Api.Controllers
             };
         }
 
-        private static TaxGroup MapTaxGroup(Core.Domain.TaxGroup group)
+        private static TaxGroupDto MapTaxGroup(Core.Domain.TaxGroup group)
         {
-            return new TaxGroup
+            return new TaxGroupDto
             {
                 Id = group.Id,
                 Description = group.Description,
@@ -120,27 +125,27 @@ namespace Api.Controllers
                 TaxAppliedToShipping = group.TaxAppliedToShipping,
 
                 Taxes = group.TaxGroupTax?
-                    .Select(x => new TaxGroupTax
+                    .Select(x => new TaxGroupTaxDto
                     {
                         Id = x.Id,
                         TaxId = x.TaxId,
                         TaxGroupId = x.TaxGroupId
                     })
                     .ToList()
-                    ?? new List<TaxGroupTax>()
+                    ?? new List<TaxGroupTaxDto>()
             };
         }
 
-        private static ItemTaxGroup MapItemTaxGroup(Core.Domain.ItemTaxGroup group)
+        private static ItemTaxGroupDto MapItemTaxGroup(Core.Domain.ItemTaxGroup group)
         {
-            return new ItemTaxGroup
+            return new ItemTaxGroupDto
             {
                 Id = group.Id,
                 Name = group.Name,
                 IsFullyExempt = group.IsFullyExempt,
 
                 Taxes = group.ItemTaxGroupTax?
-                    .Select(x => new ItemTaxGroupTax
+                    .Select(x => new ItemTaxGroupTaxDto
                     {
                         Id = x.Id,
                         TaxId = x.TaxId,
@@ -148,7 +153,7 @@ namespace Api.Controllers
                         IsExempt = x.IsExempt
                     })
                     .ToList()
-                    ?? new List<ItemTaxGroupTax>()
+                    ?? new List<ItemTaxGroupTaxDto>()
             };
         }
 
