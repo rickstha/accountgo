@@ -111,11 +111,10 @@ namespace AccountGoWeb.Models
 
             try
             {
-                // Ensure BaseAddress is set only once
-                if (_httpClient.BaseAddress == null)
-                    _httpClient.BaseAddress = new Uri(baseUri);
-
-                var response = await _httpClient.GetAsync(uri);
+                var requestUri = new Uri(
+                    $"{baseUri.TrimEnd('/')}/{uri.TrimStart('/')}",
+                    UriKind.Absolute);
+                var response = await _httpClient.GetAsync(requestUri);
 
                 if (!response.IsSuccessStatusCode)
                     return default;

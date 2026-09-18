@@ -1,5 +1,6 @@
 using Dto.Administration;
 using Dto.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Services.Administration;
@@ -17,6 +18,7 @@ namespace Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class AdministrationController : BaseController
     {
         private readonly IAdministrationService _adminService;
@@ -105,7 +107,7 @@ namespace Api.Controllers
         // =========================================
 
         [HttpGet("company")]
-        public IActionResult Company(string? companyCode = null)
+        public IActionResult Company(string companyCode = null)
         {
             try
             {
@@ -128,8 +130,8 @@ namespace Api.Controllers
                     Id = company.Id,
                     CompanyCode = company.CompanyCode,
                     Name = company.Name,
-                    ShortName = company.ShortName
-                    // Add other fields here if they exist on the DTO
+                    ShortName = company.ShortName,
+                    Logo = company.Logo
                 };
 
                 return Ok(companyDto);
@@ -397,6 +399,7 @@ namespace Api.Controllers
                 company.CompanyCode = companyDto.CompanyCode;
                 company.Name = companyDto.Name;
                 company.ShortName = companyDto.ShortName;
+                company.Logo = companyDto.Logo;
 
                 _adminService.SaveCompany(company);
 
@@ -428,7 +431,7 @@ namespace Api.Controllers
                 _securityService);
         }
 
-        private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole>? userRoles)
+        private static List<Role> MapUserRoles(IEnumerable<Core.Domain.Security.SecurityUserRole> userRoles)
         {
             var rolesDto = new List<Role>();
 
