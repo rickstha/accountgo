@@ -18,6 +18,7 @@
 </div>
 
 <form action="~/Sales/SaveSalesInvoice" method="post">
+    @Html.AntiForgeryToken()
     <div id="divSalesInvoiceCard" class="col-md-11">
         @Html.HiddenFor(m => m.Id)
         <div class="card">

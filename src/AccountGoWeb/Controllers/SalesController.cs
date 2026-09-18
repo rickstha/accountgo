@@ -1,15 +1,13 @@
 ﻿using AccountGoWeb.Models;
 using Dto.Sales;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System.Net.Http.Headers;
 using System.Text;
 
 namespace AccountGoWeb.Controllers
 {
-    // CRITICAL (flagged): this controller has NO authorization at all, despite exposing
-    // and allowing modification of customers, sales orders, invoices, and receipts.
-    // [Microsoft.AspNetCore.Authorization.Authorize]
+    [Authorize]
     public class SalesController : GoodController
     {
         private readonly ILogger<SalesController> _logger;
@@ -121,9 +119,9 @@ namespace AccountGoWeb.Controllers
             return View(dto);
         }
 
-        public async Task<IActionResult> SalesOrder(int id)
+        public async Task<IActionResult> SalesOrder(int id = 0)
         {
-            if (id == -1)
+            if (id <= 0)
             {
                 ViewBag.PageContentHeader = "Add Sales Order";
                 return RedirectToAction(nameof(AddSalesOrder));
@@ -150,7 +148,7 @@ namespace AccountGoWeb.Controllers
         {
             ViewBag.PageContentHeader = "Sales Invoice";
 
-            if (id == 0)
+            if (id <= 0)
             {
                 ViewBag.PageContentHeader = "Add Sales Invoice";
                 return RedirectToAction(nameof(AddSalesInvoice));
@@ -362,11 +360,11 @@ namespace AccountGoWeb.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Customer(int id = -1)
+        public async Task<IActionResult> Customer(int id = 0)
         {
             Customer? customerModel;
 
-            if (id == -1)
+            if (id <= 0)
             {
                 ViewBag.PageContentHeader = "New Customer";
                 customerModel = new Customer
@@ -427,7 +425,7 @@ namespace AccountGoWeb.Controllers
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(customerModel);
                 var content = new StringContent(serialize, Encoding.UTF8, "application/json");
 
-                var response = await PostAsync("Sales/SaveCustomer", content);
+                var response = await Post("Sales/SaveCustomer", content);
                 if (response != null && response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(Customers));

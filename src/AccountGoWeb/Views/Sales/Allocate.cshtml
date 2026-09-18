@@ -1,6 +1,7 @@
 ﻿@model AccountGoWeb.Models.Sales.Allocate
 
 <form action="~/sales/allocate" method="post">
+    @Html.AntiForgeryToken()
     <div class="col-md-9">
         <div class="box">
             <div class="box-header with-border">
