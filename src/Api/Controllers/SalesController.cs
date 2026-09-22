@@ -9,6 +9,13 @@ using Core.Domain;
 using Core.Domain.Sales;
 using Dto.Sales;
 using CustomerDto = Dto.Sales.Customer;
+using ContactDto = Dto.Common.Contact;
+using DtoParty = Dto.Common.Party;
+using DtoSalesOrderLine = Dto.Sales.SalesOrderLine;
+using DtoSalesInvoiceLine = Dto.Sales.SalesInvoiceLine;
+using DomainSalesOrderLine = Core.Domain.Sales.SalesOrderLine;
+using DomainSalesInvoiceLine = Core.Domain.Sales.SalesInvoiceLine;
+using DomainSalesReceiptLine = Core.Domain.Sales.SalesReceiptLine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -138,7 +145,7 @@ namespace Api.Controllers
                 customer.PrimaryContact ??= new Contact { Party = new Party() };
                 customer.PrimaryContact.Party ??= new Party();
 
-                var customerDto = new Customer
+                var customerDto = new CustomerDto
                 {
                     Id = customer.Id,
                     No = customer.No,
@@ -157,11 +164,11 @@ namespace Api.Controllers
 
                 if (customer.PrimaryContact != null)
                 {
-                    customerDto.PrimaryContact = new Contact
+                    customerDto.PrimaryContact = new ContactDto
                     {
                         FirstName = customer.PrimaryContact.FirstName,
                         LastName = customer.PrimaryContact.LastName,
-                        Party = new Party
+                            Party = new DtoParty
                         {
                             Name = customer.PrimaryContact.Party?.Name,
                             Email = customer.PrimaryContact.Party?.Email,
@@ -191,7 +198,7 @@ namespace Api.Controllers
                     .Where(p => p.Party != null)
                     ?? Enumerable.Empty<Core.Domain.Sales.Customer>();
 
-                var customersDto = customers.Select(customer => new Customer
+                var customersDto = customers.Select(customer => new CustomerDto
                 {
                     Id = customer.Id,
                     No = customer.No,
@@ -246,12 +253,12 @@ namespace Api.Controllers
                         ReferenceNo = salesOrder.ReferenceNo,
                         StatusId = (int)salesOrder.Status.GetValueOrDefault(),
                         No = salesOrder.No,
-                        SalesOrderLines = new List<SalesOrderLine>()
+                        SalesOrderLines = new List<DtoSalesOrderLine>()
                     };
 
-                    foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<SalesOrderLine>())
+                    foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<DomainSalesOrderLine>())
                     {
-                        salesOrderDto.SalesOrderLines.Add(new SalesOrderLine
+                        salesOrderDto.SalesOrderLines.Add(new DtoSalesOrderLine
                         {
                             ItemId = line.ItemId,
                             MeasurementId = line.MeasurementId,
@@ -294,12 +301,12 @@ namespace Api.Controllers
                     PaymentTermId = salesOrder.PaymentTermId,
                     ReferenceNo = salesOrder.ReferenceNo,
                     StatusId = (int)salesOrder.Status.GetValueOrDefault(),
-                    SalesOrderLines = new List<SalesOrderLine>()
+                    SalesOrderLines = new List<DtoSalesOrderLine>()
                 };
 
-                foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<SalesOrderLine>())
+                foreach (var line in salesOrder.SalesOrderLines ?? Enumerable.Empty<DomainSalesOrderLine>())
                 {
-                    salesOrderDto.SalesOrderLines.Add(new SalesOrderLine
+                    salesOrderDto.SalesOrderLines.Add(new DtoSalesOrderLine
                     {
                         Id = line.Id,
                         Amount = line.Amount,
@@ -335,12 +342,12 @@ namespace Api.Controllers
                 {
                     CustomerId = salesorderDto.CustomerId,
                     Date = salesorderDto.OrderDate,
-                    SalesOrderLines = new List<SalesOrderLine>()
+                    SalesOrderLines = new List<DomainSalesOrderLine>()
                 };
 
-                foreach (var line in salesorderDto.SalesOrderLines ?? Enumerable.Empty<SalesOrderLine>())
+                foreach (var line in salesorderDto.SalesOrderLines ?? Enumerable.Empty<DtoSalesOrderLine>())
                 {
-                    salesOrder.SalesOrderLines.Add(new SalesOrderLine
+                    salesOrder.SalesOrderLines.Add(new DomainSalesOrderLine
                     {
                         Amount = line.Amount.GetValueOrDefault(),
                         Discount = line.Discount.GetValueOrDefault(),
@@ -388,7 +395,7 @@ namespace Api.Controllers
                     salesOrder = new SalesOrderHeader
                     {
                         Status = SalesOrderStatus.Open,
-                        SalesOrderLines = new List<SalesOrderLine>()
+                        SalesOrderLines = new List<DomainSalesOrderLine>()
                     };
 
                     if (salesOrderDto.QuotationId != null)
@@ -407,7 +414,7 @@ namespace Api.Controllers
                     if (salesOrder == null)
                         return NotFound(new[] { "Sales order not found." });
 
-                    salesOrder.SalesOrderLines ??= new List<SalesOrderLine>();
+                    salesOrder.SalesOrderLines ??= new List<DomainSalesOrderLine>();
                 }
 
                 salesOrder.CustomerId = salesOrderDto.CustomerId;
@@ -415,7 +422,7 @@ namespace Api.Controllers
                 salesOrder.PaymentTermId = salesOrderDto.PaymentTermId;
                 salesOrder.ReferenceNo = salesOrderDto.ReferenceNo;
 
-                var incomingLines = salesOrderDto.SalesOrderLines ?? new List<SalesOrderLine>();
+                var incomingLines = salesOrderDto.SalesOrderLines ?? new List<DtoSalesOrderLine>();
 
                 foreach (var line in incomingLines)
                 {
@@ -433,7 +440,7 @@ namespace Api.Controllers
                         }
                     }
 
-                    salesOrder.SalesOrderLines.Add(new SalesOrderLine
+                    salesOrder.SalesOrderLines.Add(new DomainSalesOrderLine
                     {
                         Amount = line.Amount.GetValueOrDefault(),
                         Discount = line.Discount.GetValueOrDefault(),
@@ -493,15 +500,15 @@ namespace Api.Controllers
                     CustomerId = salesInvoice.CustomerId,
                     CustomerName = salesInvoice.Customer?.Party?.Name ?? string.Empty,
                     InvoiceDate = salesInvoice.Date,
-                    SalesInvoiceLines = new List<SalesInvoiceLine>(),
+                    SalesInvoiceLines = new List<DtoSalesInvoiceLine>(),
                     PaymentTermId = salesInvoice.PaymentTermId,
                     ReferenceNo = salesInvoice.ReferenceNo,
                     Posted = salesInvoice.GeneralLedgerHeaderId != null
                 };
 
-                foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
+                foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<DomainSalesInvoiceLine>())
                 {
-                    salesInvoiceDto.SalesInvoiceLines.Add(new SalesInvoiceLine
+                    salesInvoiceDto.SalesInvoiceLines.Add(new DtoSalesInvoiceLine
                     {
                         Id = line.Id,
                         Amount = line.Amount,
@@ -548,12 +555,12 @@ namespace Api.Controllers
                         InvoiceDate = salesInvoice.Date,
                         ReferenceNo = salesInvoice.ReferenceNo,
                         Posted = salesInvoice.GeneralLedgerHeaderId != null,
-                        SalesInvoiceLines = new List<SalesInvoiceLine>()
+                        SalesInvoiceLines = new List<DtoSalesInvoiceLine>()
                     };
 
-                    foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
+                    foreach (var line in salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<DomainSalesInvoiceLine>())
                     {
-                        salesInvoiceDto.SalesInvoiceLines.Add(new SalesInvoiceLine
+                        salesInvoiceDto.SalesInvoiceLines.Add(new DtoSalesInvoiceLine
                         {
                             ItemId = line.ItemId,
                             MeasurementId = line.MeasurementId,
@@ -643,7 +650,7 @@ namespace Api.Controllers
                             CustomerId = salesInvoiceDto.CustomerId,
                             ReferenceNo = salesInvoiceDto.ReferenceNo,
                             Status = SalesOrderStatus.FullyInvoiced,
-                            SalesOrderLines = new List<SalesOrderLine>()
+                            SalesOrderLines = new List<DomainSalesOrderLine>()
                         };
                     }
 
@@ -653,12 +660,12 @@ namespace Api.Controllers
                         Date = salesInvoiceDto.InvoiceDate,
                         PaymentTermId = salesInvoiceDto.PaymentTermId,
                         ReferenceNo = salesInvoiceDto.ReferenceNo,
-                        SalesInvoiceLines = new List<SalesInvoiceLine>()
+                        SalesInvoiceLines = new List<DomainSalesInvoiceLine>()
                     };
 
-                    foreach (var line in salesInvoiceDto.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
+                    foreach (var line in salesInvoiceDto.SalesInvoiceLines ?? Enumerable.Empty<DtoSalesInvoiceLine>())
                     {
-                        var salesInvoiceLine = new SalesInvoiceLine
+                        var salesInvoiceLine = new DomainSalesInvoiceLine
                         {
                             Amount = line.Amount.GetValueOrDefault(),
                             Discount = line.Discount.GetValueOrDefault(),
@@ -673,7 +680,7 @@ namespace Api.Controllers
                         }
                         else if (salesOrder != null)
                         {
-                            var salesOrderLine = new SalesOrderLine
+                            var salesOrderLine = new DomainSalesOrderLine
                             {
                                 Amount = line.Amount.GetValueOrDefault(),
                                 Discount = line.Discount.GetValueOrDefault(),
@@ -682,7 +689,7 @@ namespace Api.Controllers
                                 MeasurementId = line.MeasurementId.GetValueOrDefault()
                             };
 
-                            salesOrder.SalesOrderLines ??= new List<SalesOrderLine>();
+                            salesOrder.SalesOrderLines ??= new List<DomainSalesOrderLine>();
                             salesOrder.SalesOrderLines.Add(salesOrderLine);
                             salesInvoiceLine.SalesOrderLine = salesOrderLine;
                         }
@@ -703,9 +710,9 @@ namespace Api.Controllers
                     salesInvoice.PaymentTermId = salesInvoiceDto.PaymentTermId;
                     salesInvoice.ReferenceNo = salesInvoiceDto.ReferenceNo;
                     salesInvoice.CustomerId = salesInvoiceDto.CustomerId;
-                    salesInvoice.SalesInvoiceLines ??= new List<SalesInvoiceLine>();
+                    salesInvoice.SalesInvoiceLines ??= new List<DomainSalesInvoiceLine>();
 
-                    var incomingLines = salesInvoiceDto.SalesInvoiceLines ?? new List<SalesInvoiceLine>();
+                    var incomingLines = salesInvoiceDto.SalesInvoiceLines ?? new List<DtoSalesInvoiceLine>();
 
                     foreach (var line in incomingLines)
                     {
@@ -722,7 +729,7 @@ namespace Api.Controllers
                         }
                         else
                         {
-                            salesInvoice.SalesInvoiceLines.Add(new SalesInvoiceLine
+                            salesInvoice.SalesInvoiceLines.Add(new DomainSalesInvoiceLine
                             {
                                 Amount = line.Amount.GetValueOrDefault(),
                                 Discount = line.Discount.GetValueOrDefault(),
@@ -1050,12 +1057,12 @@ namespace Api.Controllers
                         CustomerId = invoice.CustomerId,
                         TotalAllocatedAmount = invoice.CustomerAllocations?.Sum(i => i.Amount) ?? 0,
                         Posted = invoice.GeneralLedgerHeaderId.HasValue,
-                        SalesInvoiceLines = new List<SalesInvoiceLine>()
+                        SalesInvoiceLines = new List<DtoSalesInvoiceLine>()
                     };
 
-                    foreach (var line in invoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
+                    foreach (var line in invoice.SalesInvoiceLines ?? Enumerable.Empty<DomainSalesInvoiceLine>())
                     {
-                        invoiceDto.SalesInvoiceLines.Add(new SalesInvoiceLine
+                        invoiceDto.SalesInvoiceLines.Add(new DtoSalesInvoiceLine
                         {
                             Id = line.Id,
                             Amount = line.Amount,
@@ -1119,10 +1126,10 @@ namespace Api.Controllers
                     CustomerId = customerId.Value,
                     AccountToDebitId = bank.AccountId,
                     Amount = amount.Value,
-                    SalesReceiptLines = new List<SalesReceiptLine>()
+                    SalesReceiptLines = new List<DomainSalesReceiptLine>()
                 };
 
-                salesReceipt.SalesReceiptLines.Add(new SalesReceiptLine
+                salesReceipt.SalesReceiptLines.Add(new DomainSalesReceiptLine
                 {
                     AccountToCreditId = accountToCreditId.Value,
                     AmountPaid = amount.Value,
@@ -1183,7 +1190,7 @@ namespace Api.Controllers
                         return BadRequest(new[] { "Invalid invoice for this customer." });
 
                     var invoiceAmount = invoice.SalesInvoiceLines?.Sum(invoiceLine =>
-                        (invoiceLine.Amount ?? 0) * (invoiceLine.Quantity ?? 0)) ?? 0;
+                        invoiceLine.Amount * invoiceLine.Quantity) ?? 0;
                     var allocatedAmount = invoice.CustomerAllocations?.Sum(allocation => allocation.Amount) ?? 0;
                     var requestedAmount = invoiceLines.Sum(line => line.AmountToAllocate!.Value);
                     if (requestedAmount > invoiceAmount - allocatedAmount)
@@ -1245,10 +1252,10 @@ namespace Api.Controllers
                     int month = item.Date.Month;
                     decimal lineTotal = 0;
 
-                    foreach (var line in item.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>())
+                    foreach (var line in item.SalesInvoiceLines ?? Enumerable.Empty<DomainSalesInvoiceLine>())
                     {
-                        var gross = (line.Amount ?? 0) * (line.Quantity ?? 0);
-                        var discount = gross * ((line.Discount ?? 0) / 100m);
+                        var gross = line.Amount * line.Quantity;
+                        var discount = gross * (line.Discount / 100m);
                         lineTotal += gross - discount;
                     }
                     
@@ -1301,7 +1308,7 @@ namespace Api.Controllers
                     CustomerName = salesInvoice.Customer?.Party?.Name ?? string.Empty,
                     CustomerEmail = salesInvoice.Customer?.Party?.Email,
                     InvoiceDate = salesInvoice.Date,
-                    SalesInvoiceLines = new List<SalesInvoiceLine>(),
+                    SalesInvoiceLines = new List<DtoSalesInvoiceLine>(),
                     PaymentTermId = salesInvoice.PaymentTermId,
                     ReferenceNo = salesInvoice.ReferenceNo,
                     Posted = salesInvoice.GeneralLedgerHeaderId != null,
@@ -1309,12 +1316,12 @@ namespace Api.Controllers
                 };
 
                 decimal totalTax = 0;
-                var lines = salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<SalesInvoiceLine>();
+                var lines = salesInvoice.SalesInvoiceLines ?? Enumerable.Empty<DomainSalesInvoiceLine>();
 
                 var subtotal = lines.Sum(line =>
                 {
-                    var lineTotal = (line.Amount ?? 0) * (line.Quantity ?? 0);
-                    var discount = lineTotal * ((line.Discount ?? 0) / 100m);
+                    var lineTotal = line.Amount * line.Quantity;
+                    var discount = lineTotal * (line.Discount / 100m);
                     return lineTotal - discount;
                 });
 
@@ -1323,7 +1330,7 @@ namespace Api.Controllers
                     var item = _inventoryService.GetItemById(line.ItemId);
                     var measurement = _inventoryService.GetMeasurementById(line.MeasurementId);
 
-                    var lineDto = new SalesInvoiceLine
+                    var lineDto = new DtoSalesInvoiceLine
                     {
                         Id = line.Id,
                         Amount = line.Amount,
@@ -1349,7 +1356,6 @@ namespace Api.Controllers
                     salesInvoiceDto.SalesInvoiceLines.Add(lineDto);
                 }
 
-                salesInvoiceDto.Amount = subtotal;
                 salesInvoiceDto.TotalTax = totalTax;
                 salesInvoiceDto.TotalAmountAfterTax = subtotal + totalTax;
 
