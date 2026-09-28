@@ -82,6 +82,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddSalesOrder(SalesOrder dto, string addRowBtn)
         {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
             if (!string.IsNullOrEmpty(addRowBtn))
             {
                 dto.SalesOrderLines ??= new List<SalesOrderLine>();
@@ -228,6 +233,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddSalesInvoice(SalesInvoice dto, string addRowBtn)
         {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
             if (!string.IsNullOrEmpty(addRowBtn))
             {
                 dto.SalesInvoiceLines ??= new List<SalesInvoiceLine>();
@@ -311,6 +321,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddReceipt(Models.Sales.AddReceipt model)
         {
+            if (model == null)
+            {
+                return BadRequest();
+            }
+
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);
@@ -393,6 +408,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveSalesInvoice(SalesInvoice salesInvoiceModel)
         {
+            if (salesInvoiceModel == null)
+            {
+                return BadRequest();
+            }
+
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(salesInvoiceModel);
@@ -420,6 +440,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveCustomer(Customer customerModel)
         {
+            if (customerModel == null)
+            {
+                return BadRequest();
+            }
+
             if (ModelState.IsValid)
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(customerModel);
@@ -497,6 +522,11 @@ namespace AccountGoWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Allocate(Models.Sales.Allocate model)
         {
+            if (model == null)
+            {
+                return BadRequest();
+            }
+
             if (ModelState.IsValid && model.IsValid())
             {
                 var serialize = Newtonsoft.Json.JsonConvert.SerializeObject(model);

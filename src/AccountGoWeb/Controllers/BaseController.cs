@@ -132,7 +132,7 @@ namespace AccountGoWeb.Controllers
 
         protected bool HasPermission(string permission)
         {
-            if (HttpContext.User.Identity!.IsAuthenticated)
+            if (HttpContext?.User?.Identity is { IsAuthenticated: true })
             {
                 System.Collections.Generic.IList<string> permissions = new System.Collections.Generic.List<string>();
 
@@ -140,6 +140,9 @@ namespace AccountGoWeb.Controllers
                 {
                     if (claim.Type == System.Security.Claims.ClaimTypes.UserData)
                     {
+                        if (string.IsNullOrWhiteSpace(claim.Value))
+                            continue;
+
                         Newtonsoft.Json.Linq.JObject userData = Newtonsoft.Json.Linq.JObject.Parse(claim.Value);
                         if (userData["Roles"] != null)
                         {
@@ -166,7 +169,7 @@ namespace AccountGoWeb.Controllers
 
         protected string GetCurrentUserName()
         {
-            if (HttpContext.User.Identity!.IsAuthenticated)
+            if (HttpContext?.User?.Identity is { IsAuthenticated: true })
             {
                 var emailClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email);
                 return emailClaim?.Value ?? string.Empty;

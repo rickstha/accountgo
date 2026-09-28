@@ -61,7 +61,7 @@ namespace AccountGoWeb.Controllers
 
             // Explicitly check the value, not just that the key exists.
             var signInSucceeded = resultSignIn["result"]?.Type == Newtonsoft.Json.Linq.JTokenType.Boolean
-                && resultSignIn["result"]!.Value<bool>();
+                && resultSignIn["result"]!.ToObject<bool>();
 
             if (!signInSucceeded)
             {
@@ -69,7 +69,7 @@ namespace AccountGoWeb.Controllers
                 return View(model);
             }
 
-            var user = await GetAsync<Dto.Security.User>("administration/getuser?username=" + Uri.EscapeDataString(model.Email));
+            var user = await GetAsync<Dto.Security.User>("administration/getuser?username=" + Uri.EscapeDataString(model.Email ?? string.Empty));
 
             if (user == null)
             {
@@ -109,7 +109,7 @@ namespace AccountGoWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SignOut()
+        public new async Task<IActionResult> SignOut()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction(nameof(SignedOut));
@@ -176,7 +176,7 @@ namespace AccountGoWeb.Controllers
                 }
 
                 var succeeded = resultAddNewUser["succeeded"]?.Type == Newtonsoft.Json.Linq.JTokenType.Boolean
-                    && resultAddNewUser["succeeded"]!.Value<bool>();
+                    && resultAddNewUser["succeeded"]!.ToObject<bool>();
 
                 if (succeeded)
                 {

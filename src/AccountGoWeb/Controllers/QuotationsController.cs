@@ -99,7 +99,7 @@ namespace AccountGoWeb.Controllers
                 _logger.LogInformation("Quotation ID is: {QuotationId}", model.Id);
 
                 var response = await PostAsync("sales/savequotation", content);
-                if (response != null && response.IsSuccessStatusCode)
+                if (!string.IsNullOrEmpty(response))
                 {
                     return RedirectToAction("Quotations");
                 }
