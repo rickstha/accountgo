@@ -13,11 +13,11 @@ namespace AccountGoWeb.Controllers
             string responseJson = string.Empty;
             try
             {
-                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                var apiUrl = _baseConfig?["ApiUrl"];
+                if (string.IsNullOrWhiteSpace(apiUrl))
                     return default(T)!;
-                
-                var baseUri = _baseConfig!["ApiUrl"];
-                var fullUri = new Uri(new Uri(baseUri!), uri);
+
+                var fullUri = new Uri(new Uri(apiUrl), uri);
                 var response = await _httpClient.GetAsync(fullUri);
                 if (response.IsSuccessStatusCode)
                 {
@@ -53,11 +53,11 @@ namespace AccountGoWeb.Controllers
         {
             try
             {
-                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                var apiUrl = _baseConfig?["ApiUrl"];
+                if (string.IsNullOrWhiteSpace(apiUrl))
                     throw new InvalidOperationException("ApiUrl configuration is not set");
-                
-                var baseUri = _baseConfig!["ApiUrl"];
-                var fullUri = new Uri(new Uri(baseUri!), uri);
+
+                var fullUri = new Uri(new Uri(apiUrl), uri);
                 var response = await _httpClient.GetAsync(fullUri);
                 return response;
             }
@@ -73,11 +73,11 @@ namespace AccountGoWeb.Controllers
             string responseJson = string.Empty;
             try
             {
-                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                var apiUrl = _baseConfig?["ApiUrl"];
+                if (string.IsNullOrWhiteSpace(apiUrl))
                     return string.Empty;
-                
-                var baseUri = _baseConfig!["ApiUrl"];
-                var fullUri = new Uri(new Uri(baseUri!), uri);
+
+                var fullUri = new Uri(new Uri(apiUrl), uri);
                 var request = new HttpRequestMessage(HttpMethod.Post, fullUri)
                 {
                     Content = data
@@ -108,11 +108,11 @@ namespace AccountGoWeb.Controllers
         {
             try
             {
-                if (string.IsNullOrEmpty(_baseConfig?["ApiUrl"]))
+                var apiUrl = _baseConfig?["ApiUrl"];
+                if (string.IsNullOrWhiteSpace(apiUrl))
                     throw new InvalidOperationException("ApiUrl configuration is not set");
-                
-                var baseUri = _baseConfig!["ApiUrl"];
-                var fullUri = new Uri(new Uri(baseUri!), uri);
+
+                var fullUri = new Uri(new Uri(apiUrl), uri);
                 var request = new HttpRequestMessage(HttpMethod.Post, fullUri)
                 {
                     Content = data
@@ -132,11 +132,12 @@ namespace AccountGoWeb.Controllers
 
         protected bool HasPermission(string permission)
         {
-            if (HttpContext?.User?.Identity is { IsAuthenticated: true })
+            var user = HttpContext?.User;
+            if (user?.Identity is { IsAuthenticated: true })
             {
                 System.Collections.Generic.IList<string> permissions = new System.Collections.Generic.List<string>();
 
-                foreach (var claim in HttpContext.User.Claims)
+                foreach (var claim in user.Claims)
                 {
                     if (claim.Type == System.Security.Claims.ClaimTypes.UserData)
                     {
@@ -144,17 +145,24 @@ namespace AccountGoWeb.Controllers
                             continue;
 
                         Newtonsoft.Json.Linq.JObject userData = Newtonsoft.Json.Linq.JObject.Parse(claim.Value);
-                        if (userData["Roles"] != null)
+                        var roles = userData["Roles"] as Newtonsoft.Json.Linq.JArray;
+                        if (roles != null)
                         {
-                            foreach (var r in userData["Roles"])
+                            foreach (var r in roles.Children())
                             {
-                                if (r["Permissions"] != null)
+                                var role = r as Newtonsoft.Json.Linq.JObject;
+                                if (role == null)
+                                    continue;
+
+                                var permissionsList = role["Permissions"] as Newtonsoft.Json.Linq.JArray;
+                                if (permissionsList == null)
+                                    continue;
+
+                                foreach (var p in permissionsList.Children())
                                 {
-                                    foreach (var p in r["Permissions"])
-                                    {
-                                        if (p["Name"] != null)
-                                            permissions.Add(p["Name"]!.ToString());
-                                    }
+                                    var permissionName = p["Name"]?.ToString();
+                                    if (!string.IsNullOrWhiteSpace(permissionName))
+                                        permissions.Add(permissionName);
                                 }
                             }
                         }
@@ -169,9 +177,10 @@ namespace AccountGoWeb.Controllers
 
         protected string GetCurrentUserName()
         {
-            if (HttpContext?.User?.Identity is { IsAuthenticated: true })
+            var user = HttpContext?.User;
+            if (user?.Identity is { IsAuthenticated: true })
             {
-                var emailClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email);
+                var emailClaim = user.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email);
                 return emailClaim?.Value ?? string.Empty;
             }
             return string.Empty;
