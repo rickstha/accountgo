@@ -19,7 +19,7 @@ namespace Api.Data
 
 
         public virtual IQueryable<T> Table => Entities;
-
+33
         public virtual IQueryable<T> TableNoTracking => Entities.AsNoTracking();
 
         protected virtual DbSet<T> Entities
