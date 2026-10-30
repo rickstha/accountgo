@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -11,8 +10,6 @@ namespace Api.Data
 {
     public static class AuditLogHelper
     {
-        public static readonly ConcurrentDictionary<DateTime, EntityEntry> AddedEntities = new();
-
         public static List<AuditLog> GetChangesForAuditLog(EntityEntry dbEntry, string username)
         {
             var result = new List<AuditLog>();
@@ -20,127 +17,119 @@ namespace Api.Data
             if (dbEntry == null)
                 return result;
 
-            try
-            {
-                var entityType = dbEntry.Entity.GetType();
+            var entityType = dbEntry.Entity.GetType();
 
-                var tableAttribute =
-                    entityType.GetCustomAttributes(typeof(TableAttribute), true)
+            var tableAttribute =
+                entityType.GetCustomAttributes(typeof(TableAttribute), true)
+                .OfType<TableAttribute>()
+                .FirstOrDefault()
+                ??
+                entityType.BaseType?
+                    .GetCustomAttributes(typeof(TableAttribute), true)
                     .OfType<TableAttribute>()
-                    .FirstOrDefault()
-                    ??
-                    entityType.BaseType?
-                        .GetCustomAttributes(typeof(TableAttribute), true)
-                        .OfType<TableAttribute>()
-                        .FirstOrDefault();
+                    .FirstOrDefault();
 
-                string tableName = tableAttribute?.Name ?? entityType.Name;
+            string tableName = tableAttribute?.Name ?? entityType.Name;
 
-                if (tableName.Contains("_"))
-                    tableName = tableName[..tableName.IndexOf("_")];
+            if (tableName.Contains("_"))
+                tableName = tableName[..tableName.IndexOf("_")];
 
-                bool isSchemaExt = tableAttribute?.Schema == "ext";
+            bool isSchemaExt = tableAttribute?.Schema == "ext";
 
-                AuditableEntity auditableEntity = null;
+            AuditableEntity auditableEntity = null;
 
-                if (!isSchemaExt)
-                    auditableEntity = FillAuditableEntityAndAttributes(dbEntry, tableName);
+            if (!isSchemaExt)
+                auditableEntity = FillAuditableEntityAndAttributes(dbEntry, tableName);
 
-                var primaryKey = dbEntry.Metadata.FindPrimaryKey();
+            var primaryKey = dbEntry.Metadata.FindPrimaryKey();
 
-                string recordId = null;
+            string recordId = null;
 
-                if (primaryKey != null)
+            if (primaryKey != null)
+            {
+                var keyProperty = primaryKey.Properties.FirstOrDefault();
+
+                if (keyProperty != null)
                 {
-                    var keyProperty = primaryKey.Properties.FirstOrDefault();
-
-                    if (keyProperty != null)
-                    {
-                        recordId = dbEntry.Property(keyProperty.Name)
-                                          .CurrentValue?
-                                          .ToString();
-                    }
-                }
-
-                DateTime changeTime = DateTime.UtcNow;
-
-                switch (dbEntry.State)
-                {
-                    case EntityState.Added:
-
-                        if (isSchemaExt || IsEntityAuditable(auditableEntity))
-                        {
-                            result.Add(CreateAuditLog(
-                                username,
-                                changeTime,
-                                AuditEventTypes.Added,
-                                tableName,
-                                recordId,
-                                null,
-                                null,
-                                ObjectFieldsValues(dbEntry)));
-
-                            AddedEntities.TryAdd(changeTime, dbEntry);
-                        }
-
-                        break;
-
-                    case EntityState.Deleted:
-
-                        if (isSchemaExt || IsEntityAuditable(auditableEntity))
-                        {
-                            if (primaryKey != null)
-                            {
-                                var key = primaryKey.Properties.First();
-                                recordId = dbEntry.Property(key.Name).OriginalValue?.ToString();
-                            }
-
-                            result.Add(CreateAuditLog(
-                                username,
-                                changeTime,
-                                AuditEventTypes.Deleted,
-                                tableName,
-                                recordId,
-                                null,
-                                null,
-                                ObjectFieldsValues(dbEntry)));
-                        }
-
-                        break;
-
-                    case EntityState.Modified:
-
-                        foreach (var property in dbEntry.Properties)
-                        {
-                            if (!property.IsModified)
-                                continue;
-
-                            if (!isSchemaExt &&
-                                !IsAttributeAuditable(
-                                    auditableEntity,
-                                    tableName,
-                                    property.Metadata.Name))
-                            {
-                                continue;
-                            }
-
-                            result.Add(CreateAuditLog(
-                                username,
-                                changeTime,
-                                AuditEventTypes.Modified,
-                                tableName,
-                                recordId,
-                                property.Metadata.Name,
-                                property.OriginalValue?.ToString(),
-                                property.CurrentValue?.ToString()));
-                        }
-
-                        break;
+                    recordId = dbEntry.Property(keyProperty.Name)
+                                      .CurrentValue?
+                                      .ToString();
                 }
             }
-            catch (Exception ex)
+
+            DateTime changeTime = DateTime.UtcNow;
+
+            switch (dbEntry.State)
             {
-                Console.WriteLine(ex);
+                case EntityState.Added:
+
+                    if (isSchemaExt || IsEntityAuditable(auditableEntity))
+                    {
+                        result.Add(CreateAuditLog(
+                            username,
+                            changeTime,
+                            AuditEventTypes.Added,
+                            tableName,
+                            recordId,
+                            null,
+                            null,
+                            ObjectFieldsValues(dbEntry)));
+
+                    }
+
+                    break;
+
+                case EntityState.Deleted:
+
+                    if (isSchemaExt || IsEntityAuditable(auditableEntity))
+                    {
+                        if (primaryKey != null)
+                        {
+                            var key = primaryKey.Properties.First();
+                            recordId = dbEntry.Property(key.Name).OriginalValue?.ToString();
+                        }
+
+                        result.Add(CreateAuditLog(
+                            username,
+                            changeTime,
+                            AuditEventTypes.Deleted,
+                            tableName,
+                            recordId,
+                            null,
+                            null,
+                            ObjectFieldsValues(dbEntry)));
+                    }
+
+                    break;
+
+                case EntityState.Modified:
+
+                    foreach (var property in dbEntry.Properties)
+                    {
+                        if (!property.IsModified)
+                            continue;
+
+                        if (!isSchemaExt &&
+                            !IsAttributeAuditable(
+                                auditableEntity,
+                                tableName,
+                                property.Metadata.Name))
+                        {
+                            continue;
+                        }
+
+                        result.Add(CreateAuditLog(
+                            username,
+                            changeTime,
+                            AuditEventTypes.Modified,
+                            tableName,
+                            recordId,
+                            property.Metadata.Name,
+                            property.OriginalValue?.ToString(),
+                            property.CurrentValue?.ToString()));
+                    }
+
+                    break;
             }
 
             return result;
