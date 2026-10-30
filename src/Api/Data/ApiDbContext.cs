@@ -7,6 +7,8 @@ using Core.Domain.Purchases;
 using Core.Domain.Sales;
 using Core.Domain.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Api.Data
@@ -218,19 +220,65 @@ namespace Api.Data
 
         public override int SaveChanges()
         {
-            SaveAuditLog();
+            return SaveChanges(acceptAllChangesOnSuccess: true);
+        }
 
-            var result = base.SaveChanges();
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            var auditEntries = SaveAuditLog();
+            int result;
 
-            UpdateAuditLogRecordId();
+            try
+            {
+                result = base.SaveChanges(acceptAllChangesOnSuccess);
+            }
+            catch
+            {
+                DetachAuditLogs(auditEntries);
+                throw;
+            }
+
+            if (UpdateAuditLogRecordId(auditEntries, acceptAllChangesOnSuccess))
+                base.SaveChanges(acceptAllChangesOnSuccess);
+
+            return result;
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return SaveChangesAsync(
+                acceptAllChangesOnSuccess: true,
+                cancellationToken: cancellationToken);
+        }
+
+        public override async Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            var auditEntries = SaveAuditLog();
+            int result;
+
+            try
+            {
+                result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            }
+            catch
+            {
+                DetachAuditLogs(auditEntries);
+                throw;
+            }
+
+            if (UpdateAuditLogRecordId(auditEntries, acceptAllChangesOnSuccess))
+                await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
 
             return result;
         }
 
         #region Audit Logs
 
-        private void SaveAuditLog()
+        private List<(EntityEntry Entity, AuditLog AuditLog, bool IsAdded)> SaveAuditLog()
         {
+            var auditEntries = new List<(EntityEntry Entity, AuditLog AuditLog, bool IsAdded)>();
             var entries = ChangeTracker.Entries()
                 .Where(e => e.State == EntityState.Added ||
                             e.State == EntityState.Modified ||
@@ -239,80 +287,66 @@ namespace Api.Data
 
             foreach (var entry in entries)
             {
-                try
+                if (entry.Entity is not BaseEntity baseEntity)
+                    continue;
+
+                string username = baseEntity.ModifiedBy ?? string.Empty;
+
+                var auditLogs = AuditLogHelper.GetChangesForAuditLog(entry, username);
+
+                foreach (var auditLog in auditLogs)
                 {
-                    // Safe type check – avoid InvalidCastException
-                    if (entry.Entity is not BaseEntity baseEntity)
+                    if (auditLog == null)
                         continue;
 
-                    string username = baseEntity.ModifiedBy ?? string.Empty;
-
-                    var auditLogs = AuditLogHelper.GetChangesForAuditLog(entry, username);
-
-                    foreach (var auditLog in auditLogs)
-                    {
-                        if (auditLog != null)
-                            AuditLogs.Add(auditLog);
-                    }
-                }
-                catch
-                {
-                    // Audit logging must never break the main business transaction
-                    continue;
+                    AuditLogs.Add(auditLog);
+                    auditEntries.Add((
+                        entry,
+                        auditLog,
+                        entry.State == EntityState.Added &&
+                        auditLog.AuditEventType == (int)AuditEventTypes.Added));
                 }
             }
+
+            return auditEntries;
         }
 
-        private void UpdateAuditLogRecordId()
+        private bool UpdateAuditLogRecordId(
+            List<(EntityEntry Entity, AuditLog AuditLog, bool IsAdded)> auditEntries,
+            bool acceptAllChangesOnSuccess)
         {
-            if (AuditLogHelper.AddedEntities.Count == 0)
-                return;
-
             bool needsSave = false;
 
-            foreach (var entity in AuditLogHelper.AddedEntities)
+            foreach (var auditEntry in auditEntries)
             {
-                if (!ChangeTracker.Entries().Contains(entity.Value))
+                if (!auditEntry.IsAdded)
                     continue;
 
-                try
-                {
-                    // Use EF Core metadata (works with both data annotations and Fluent API)
-                    var primaryKey = entity.Value.Metadata.FindPrimaryKey();
-                    if (primaryKey == null || primaryKey.Properties.Count == 0)
-                        continue;
-
-                    // Handle simple (single-column) primary keys
-                    var keyProperty = primaryKey.Properties[0];
-                    var keyValue = entity.Value.Property(keyProperty.Name).CurrentValue;
-
-                    if (keyValue == null)
-                        continue;
-
-                    string recid = keyValue.ToString();
-
-                    var auditLog = AuditLogs
-                        .FirstOrDefault(log => log.AuditEventDateUTC == entity.Key);
-
-                    if (auditLog != null)
-                    {
-                        auditLog.RecordId = recid;
-                        needsSave = true;
-                    }
-                }
-                catch
-                {
+                var primaryKey = auditEntry.Entity.Metadata.FindPrimaryKey();
+                if (primaryKey == null || primaryKey.Properties.Count == 0)
                     continue;
-                }
+
+                var keyProperty = primaryKey.Properties[0];
+                var keyValue = auditEntry.Entity.Property(keyProperty.Name).CurrentValue;
+
+                if (keyValue == null)
+                    continue;
+
+                auditEntry.AuditLog.RecordId = keyValue.ToString();
+                if (!acceptAllChangesOnSuccess)
+                    Entry(auditEntry.AuditLog).State = EntityState.Modified;
+
+                needsSave = true;
             }
 
-            // Important: call SaveChanges only once (fixes the major performance bug)
-            if (needsSave)
-            {
-                base.SaveChanges();
-            }
+            return needsSave;
+        }
 
-            AuditLogHelper.AddedEntities.Clear();
+        private void DetachAuditLogs(
+            List<(EntityEntry Entity, AuditLog AuditLog, bool IsAdded)> auditEntries)
+        {
+            foreach (var auditEntry in auditEntries)
+                Entry(auditEntry.AuditLog).State = EntityState.Detached;
         }
 
         #endregion
