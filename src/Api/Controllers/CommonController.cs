@@ -277,13 +277,12 @@ namespace Api.Controllers
                 
                 var allowedStatuses = new HashSet<int> { 0, 1, 3 };
 
-                var salesQuotationsDto = Enum.GetValues(typeof(Core.Domain.SalesQuoteStatus))
-                    .Cast<int>()
-                    .Where(allowedStatuses.Contains)
-                    .Select(value => new Dto.Common.Status
+                var salesQuotationsDto = Enum.GetValues<Core.Domain.SalesQuoteStatus>()
+                    .Where(status => allowedStatuses.Contains((int)status))
+                    .Select(status => new Dto.Common.Status
                     {
-                        Id = value,
-                        Description = Enum.GetName(typeof(Core.Domain.SalesQuoteStatus), value)
+                        Id = (int)status,
+                        Description = Enum.GetName(status)
                     })
                     .ToList();
 

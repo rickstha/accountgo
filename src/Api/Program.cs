@@ -41,11 +41,11 @@ var connectionString = configuredConnectionString.Contains("{0}", StringComparis
 System.Console.WriteLine("DB Connection String: " + connectionString);
 
 builder.Services
-    .AddDefaultTokenProviders()
     .AddDbContext<ApiDbContext>(options =>
     {
-        options.UseSqlServer(connectionString);
-        options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+        options.UseSqlServer(
+            connectionString,
+            sqlOptions => sqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
     })
     .AddDbContext<ApplicationIdentityDbContext>(options => options.UseSqlServer(connectionString));
 
@@ -81,9 +81,6 @@ builder.Services.AddScoped(typeof(Services.Purchasing.IPurchasingService), typeo
 builder.Services.AddScoped(typeof(Services.Administration.IAdministrationService), typeof(Services.Administration.AdministrationService));
 builder.Services.AddScoped(typeof(Services.Security.ISecurityService), typeof(Services.Security.SecurityService));
 builder.Services.AddScoped(typeof(Services.TaxSystem.ITaxService), typeof(Services.TaxSystem.TaxService));
-builder.Services.AddScoped(typeof(Services.LoginSystem.ILoginServices), typeof(Services.LoginSystem.LoginServices));
-builder.Services.AddScoped(typeof(Services.RegisterSystem.IRegisterService), typeof(Services.RegisterSystem.RegisterService));
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -95,7 +92,7 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();
 app.UseRouting();
-app.UseCors(AllowAllOrigins);
+app.UseCors(allowAllOrigins);
 app.UseAuthorization();
 app.MapControllers();
 using (var scope = app.Services.CreateScope())

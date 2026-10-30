@@ -17,9 +17,7 @@ namespace Api.Data
 
         #region Properties
 
-
         public virtual IQueryable<T> Table => Entities;
-33
         public virtual IQueryable<T> TableNoTracking => Entities.AsNoTracking();
 
         protected virtual DbSet<T> Entities
@@ -119,11 +117,6 @@ namespace Api.Data
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error deleting entity of type {EntityType}", typeof(T));
-                throw;
-            }
-            catch (ArgumentUpdate argEx)
-            {
-                _logger.LogError(argEx, "Unexpected error deleting entity of type {EntityType}", typeof(T));
                 throw;
             }
         }

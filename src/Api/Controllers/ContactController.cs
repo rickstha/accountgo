@@ -101,7 +101,6 @@ namespace Api.Controllers
                 return BadRequest("Invalid partyType. Use 1 for Customer or 2 for Vendor.");
             }
 
-            // NOTE: If your service still has the typo "GetContacyById", change this back.
             var contact = _salesService.GetContactById(id);
             if (contact == null)
             {

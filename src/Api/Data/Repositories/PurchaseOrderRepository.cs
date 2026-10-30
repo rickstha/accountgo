@@ -10,7 +10,7 @@ namespace Api.Data
 {
     public class PurchaseOrderRepository : EfRepository<PurchaseOrderHeader>, IPurchaseOrderRepository
     {
-        public PurchaseOrderRepository(ILogger<PurchaseOrderHeader> logger, ApiDbContext context) : base(logger, context)
+        public PurchaseOrderRepository(ILogger<EfRepository<PurchaseOrderHeader>> logger, ApiDbContext context) : base(logger, context)
         {
         }        
 

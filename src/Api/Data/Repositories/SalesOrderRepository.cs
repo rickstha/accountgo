@@ -10,7 +10,7 @@ namespace Api.Data
 {
     public class SalesOrderRepository : EfRepository<SalesOrderHeader>, ISalesOrderRepository
     {
-        public SalesOrderRepository(ILogger<SalesOrderHeader> logger, ApiDbContext context) : base(logger,context)
+        public SalesOrderRepository(ILogger<EfRepository<SalesOrderHeader>> logger, ApiDbContext context) : base(logger, context)
         {
         }
 

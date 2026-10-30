@@ -438,7 +438,7 @@ namespace Services.Sales
 
             foreach (var customerContact in customer.CustomerContact)
             {
-                var contact = GetContacyById(customerContact.ContactId);
+                var contact = GetContactById(customerContact.ContactId);
                 customerContact.Contact = contact;
             }
 
@@ -935,7 +935,7 @@ namespace Services.Sales
             }
         }
         
-        public Contact GetContacyById(int id)
+        public Contact GetContactById(int id)
         {
  
             var contact = _contactRepo.GetAllIncluding(q => q.Party)

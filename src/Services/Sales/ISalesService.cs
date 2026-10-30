@@ -49,7 +49,7 @@ namespace Services.Sales
         SalesQuoteHeader GetSalesQuotationById(int id);
         void SaveSalesInvoice(SalesInvoiceHeader salesInvoice, SalesOrderHeader salesOrder);
         void PostSalesInvoice(int invoiceId);
-        Contact GetContacyById(int id);
+        Contact GetContactById(int id);
         CustomerContact GetCustomerContact(int id);
         void BookQuotation(int id);
     }
